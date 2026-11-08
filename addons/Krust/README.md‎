@@ -1,0 +1,14 @@
+# Krust
+A WoW: Forever addon for client 1.60.1 (interface 16001). Copy the `Krust`
+folder into the client's `Interface/AddOns` directory and reload the UI.
+Krust is enabled by default and remembers its setting between sessions. Use
+`/krust enable` or `/krust disable`; `/krust` shows the current status and usage.
+Output is local to your client, in the default chat/output window. It is never
+sent to a chat channel or other players.
+For each XP update, Krust reports the gain as a percentage of the current
+level's XP requirement and rounds up the number of equally sized gains needed
+to reach the next level. A gain that crosses one level includes the XP spent
+finishing the previous level, and uses the new level's requirement. At the
+level cap, it reports the XP amount instead. If a single update crosses more
+than one level, the intermediate requirements are unavailable, so Krust reports
+that it cannot calculate the gain rather than giving a misleading estimate.
