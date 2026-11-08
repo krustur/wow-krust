@@ -1,73 +1,205 @@
-local events, output = {}, {}
-local level, xp, maxXP = 10, 100, 1000
-local frame = {}
-function frame:RegisterEvent(event)
-    events[event] = true
+local level, xp, maxXP, now
+local eventFrame, display, frames, output
+local objects
+
+local function newObject()
+    local object = { shown = true, scripts = {} }
+    objects[#objects + 1] = object
+    function object:SetWidth(value) self.width = value end
+    function object:SetHeight(value) self.height = value end
+    function object:SetPoint(...) self.point = { ... } end
+    function object:SetAllPoints(...) self.allPoints = { ... } end
+    function object:SetTexture(...) self.color = { ... } end
+    function object:SetText(value) self.text = value end
+    function object:SetJustifyH(value) self.justify = value end
+    function object:Show() self.shown = true end
+    function object:Hide() self.shown = false end
+    function object:SetMovable(value) self.movable = value end
+    function object:EnableMouse(value) self.mouse = value end
+    function object:RegisterForDrag(value) self.dragButton = value end
+    function object:SetClampedToScreen(value) self.clamped = value end
+    function object:StartMoving() self.moving = true end
+    function object:StopMovingOrSizing() self.moving = false end
+    function object:GetLeft() return self.left end
+    function object:GetTop() return self.top end
+    function object:GetBottom() return self.bottom end
+    function object:RegisterEvent(name) self.events = self.events or {}; self.events[name] = true end
+    function object:SetScript(name, handler) self.scripts[name] = handler end
+    function object:CreateTexture()
+        local texture = newObject()
+        self.textures = self.textures or {}
+        self.textures[#self.textures + 1] = texture
+        return texture
+    end
+    function object:CreateFontString()
+        local text = newObject()
+        self.strings = self.strings or {}
+        self.strings[#self.strings + 1] = text
+        return text
+    end
+    return object
 end
-function frame:SetScript(_, handler)
-    self.handler = handler
+
+local realPrint = print
+local function setup(db)
+    level, xp, maxXP, now = 10, 100, 1000, 0
+    frames, output, objects = {}, {}, {}
+    UIParent = newObject()
+    UIParent.left, UIParent.bottom = 10, 20
+    function CreateFrame()
+        local frame = newObject()
+        frames[#frames + 1] = frame
+        return frame
+    end
+    function UnitLevel() return level end
+    function UnitXP() return xp end
+    function UnitXPMax() return maxXP end
+    function GetTime() return now end
+    function print(message) output[#output + 1] = message end
+    KrustDB = db
+    SlashCmdList = {}
+    assert(loadfile("addons/Krust/Krust.lua"))("Krust")
+    eventFrame = frames[1]
 end
-function CreateFrame()
-    return frame
-end
-function UnitLevel() return level end
-function UnitXP() return xp end
-function UnitXPMax() return maxXP end
-function print(message) output[#output + 1] = message end
-SlashCmdList = {}
-local addon = assert(loadfile("addons/Krust/Krust.lua"))
-addon("Krust")
+
 local function event(name, arg)
-    assert(events[name])
-    frame.handler(frame, name, arg)
+    assert(eventFrame.events[name], name)
+    eventFrame.scripts.OnEvent(eventFrame, name, arg)
+    display = frames[2]
 end
-local function expect(text)
-    assert(output[#output] == "Krust: " .. text, output[#output])
+
+local function tick(seconds)
+    now = now + seconds
+    eventFrame.scripts.OnUpdate(eventFrame, seconds)
 end
+
+local function expect(actual, expected)
+    assert(actual == expected, "expected " .. tostring(expected) .. ", got " .. tostring(actual))
+end
+
+local function gain(value)
+    xp = xp + value
+    event("PLAYER_XP_UPDATE", "player")
+end
+
+setup()
 event("ADDON_LOADED", "Other")
-assert(#output == 0)
+expect(#frames, 1)
 event("ADDON_LOADED", "Krust")
-expect("XP reports are enabled. Usage: /krust enable | disable")
+assert(display.shown and display.movable and display.mouse and display.clamped)
+expect(display.dragButton, "LeftButton")
+expect(KrustDB.shown, true)
+expect(#output, 0)
+expect(display.strings[1].text, "ETA: Estimating...")
+expect(display.strings[2].text, "Waiting for an XP gain.")
+-- Texture 1 is the backdrop, followed by alternating empty and filled boxes.
+expect(display.textures[3].width, 8)
+assert(display.textures[9].shown)
+assert(not display.textures[11].shown)
 event("PLAYER_ENTERING_WORLD")
-xp = 200
+xp = 112
 event("PLAYER_XP_UPDATE", "player")
-expect("Gained 100 XP (10.00% of this level); 8 similar gains until the next level.")
-local count = #output
+assert(math.abs(display.textures[11].width - 3.84) < 0.0001)
+expect(display.strings[2].text, "Gained 12 XP. 74 more of these to go ...")
+
+-- A fresh session exercises elapsed time, idle time, and window expiry.
+setup()
+event("ADDON_LOADED", "Krust")
+event("PLAYER_ENTERING_WORLD")
+tick(30)
+gain(100)
+expect(display.strings[1].text, "ETA: Estimating...")
+tick(30)
+expect(display.strings[1].text, "ETA: ~8m")
+expect(display.strings[2].text, "Gained 100 XP. 8 more of these to go ...")
+tick(60)
+expect(display.strings[1].text, "ETA: ~16m")
+SlashCmdList.KRUST(" HIDE ")
+assert(not display.shown and not KrustDB.shown)
+gain(100)
+expect(display.strings[2].text, "Gained 100 XP. 7 more of these to go ...")
+SlashCmdList.KRUST("show")
+assert(display.shown and KrustDB.shown)
+expect(display.strings[1].text, "ETA: ~7m")
+tick(1801)
+expect(display.strings[1].text, "ETA: Unavailable")
+gain(100)
+expect(display.strings[1].text, "ETA: ~3h 00m")
+local status = display.strings[2].text
 event("PLAYER_XP_UPDATE", "pet")
 event("PLAYER_XP_UPDATE", "player")
-assert(#output == count)
-SlashCmdList.KRUST(" DISABLE ")
-expect("XP reports are disabled. Usage: /krust enable | disable")
-xp = 500
-count = #output
+expect(display.strings[2].text, status)
+xp = 10
 event("PLAYER_XP_UPDATE", "player")
-assert(#output == count)
-SlashCmdList.KRUST("enable")
-expect("XP reports are enabled. Usage: /krust enable | disable")
-xp = 700
-event("PLAYER_XP_UPDATE", "player")
-expect("Gained 200 XP (20.00% of this level); 2 similar gains until the next level.")
+expect(display.strings[1].text, "ETA: Estimating...")
+expect(display.strings[2].text, status)
+gain(100)
+expect(display.strings[2].text, "Gained 100 XP. 9 more of these to go ...")
+
+display.left, display.top = 200, 400
+display.scripts.OnDragStart(display)
+assert(display.moving)
+display.scripts.OnDragStop(display)
+assert(not display.moving)
+expect(KrustDB.x, 190)
+expect(KrustDB.y, 380)
+local saved = KrustDB
+setup(saved)
+event("ADDON_LOADED", "Krust")
+expect(display.point[1], "TOPLEFT")
+expect(display.point[4], 190)
+expect(display.point[5], 380)
+SlashCmdList.KRUST("invalid")
+expect(output[#output], "Krust: Display is shown. Usage: /krust show | hide")
+SlashCmdList.KRUST("disable")
+assert(display.shown)
+SlashCmdList.KRUST("hide")
+saved = KrustDB
+setup(saved)
+event("ADDON_LOADED", "Krust")
+assert(not display.shown)
+expect(display.point[4], 190)
+expect(display.point[5], 380)
+
+setup({ enabled = false })
+event("ADDON_LOADED", "Krust")
+assert(not display.shown and not KrustDB.shown and KrustDB.enabled == nil)
+event("PLAYER_ENTERING_WORLD")
 level, xp, maxXP = 11, 50, 2000
 event("PLAYER_XP_UPDATE", "player")
-expect("Gained 350 XP (17.50% of this level); 6 similar gains until the next level.")
+expect(display.strings[2].text, "Gained 950 XP. 3 more of these to go ...")
 level, xp, maxXP = 12, 0, 0
-event("PLAYER_XP_UPDATE", "player")
-expect("Gained 1950 XP. No next level is available.")
+event("PLAYER_LEVEL_UP")
+tick(0.1)
+expect(display.strings[2].text, "Gained 1950 XP. No next level is available.")
+expect(display.strings[1].text, "ETA: No next level")
+assert(not display.textures[3].shown)
 level, xp, maxXP = 15, 20, 3000
 event("PLAYER_XP_UPDATE", "player")
-expect("XP gain crossed multiple levels and cannot be calculated.")
-xp = 70
-event("PLAYER_XP_UPDATE", "player")
-expect("Gained 50 XP (1.67% of this level); 59 similar gains until the next level.")
-xp = 10
-count = #output
-event("PLAYER_XP_UPDATE", "player")
-assert(#output == count)
-xp = 110
-event("PLAYER_XP_UPDATE", "player")
-expect("Gained 100 XP (3.33% of this level); 29 similar gains until the next level.")
-SlashCmdList.KRUST("invalid")
-expect("XP reports are enabled. Usage: /krust enable | disable")
-KrustDB.enabled = false
+expect(display.strings[2].text, "XP gain crossed multiple levels and cannot be calculated.")
+expect(display.strings[1].text, "ETA: Estimating...")
+gain(50)
+expect(display.strings[2].text, "Gained 50 XP. 59 more of these to go ...")
+
+setup()
 event("ADDON_LOADED", "Krust")
-expect("XP reports are disabled. Usage: /krust enable | disable")
+event("PLAYER_ENTERING_WORLD")
+tick(60)
+expect(display.strings[1].text, "ETA: Unavailable")
+gain(890)
+expect(display.strings[1].text, "ETA: ~< 1m")
+level, xp, maxXP = 11, 50, 2000
+event("PLAYER_XP_UPDATE", "player")
+event("PLAYER_LEVEL_UP")
+tick(0.1)
+expect(display.strings[2].text, "Gained 60 XP. 33 more of these to go ...")
+event("PLAYER_ENTERING_WORLD")
+expect(display.strings[1].text, "ETA: Estimating...")
+
+setup({ shown = true, enabled = false, x = 0/0, y = 10 })
+event("ADDON_LOADED", "Krust")
+assert(display.shown)
+expect(display.point[1], "CENTER")
+expect(KrustDB.enabled, nil)
+print = realPrint
+print("Krust tests passed")
