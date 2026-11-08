@@ -113,7 +113,8 @@ local function createDisplay()
 
     local background = display:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints(display)
-    background:SetTexture(0, 0, 0, 0.75)
+    background:SetTexture("Interface\\Buttons\\WHITE8X8")
+    background:SetVertexColor(0, 0, 0, 0.75)
     for i = 1, BOX_COUNT do
         local column = (i - 1) % BOX_COLUMNS
         local row = math.floor((i - 1) / BOX_COLUMNS)
@@ -121,11 +122,13 @@ local function createDisplay()
         empty:SetWidth(BOX_SIZE)
         empty:SetHeight(BOX_SIZE)
         empty:SetPoint("TOPLEFT", display, "TOPLEFT", 6 + column * (BOX_SIZE + BOX_SPACING), -6 - row * (BOX_SIZE + BOX_SPACING))
-        empty:SetTexture(0.2, 0.2, 0.2, 1)
+        empty:SetTexture("Interface\\Buttons\\WHITE8X8")
+        empty:SetVertexColor(0.2, 0.2, 0.2, 1)
         local fill = display:CreateTexture(nil, "ARTWORK")
         fill:SetHeight(BOX_SIZE)
         fill:SetPoint("TOPLEFT", empty, "TOPLEFT", 0, 0)
-        fill:SetTexture(0.55, 0.25, 0.85, 1)
+        fill:SetTexture("Interface\\Buttons\\WHITE8X8")
+        fill:SetVertexColor(0.55, 0.25, 0.85, 1)
         boxes[i] = fill
     end
     etaText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")

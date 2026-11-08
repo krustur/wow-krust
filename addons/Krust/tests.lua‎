@@ -9,7 +9,8 @@ local function newObject()
     function object:SetHeight(value) self.height = value end
     function object:SetPoint(...) self.point = { ... } end
     function object:SetAllPoints(...) self.allPoints = { ... } end
-    function object:SetTexture(...) self.color = { ... } end
+    function object:SetTexture(...) self.texture = { ... } end
+    function object:SetVertexColor(...) self.color = { ... } end
     function object:SetText(value) self.text = value end
     function object:SetJustifyH(value) self.justify = value end
     function object:Show() self.shown = true end
@@ -93,6 +94,12 @@ expect(#output, 0)
 expect(display.strings[1].text, "ETA: Estimating...")
 expect(display.strings[2].text, "Waiting for an XP gain.")
 -- Texture 1 is the backdrop, followed by alternating empty and filled boxes.
+expect(display.textures[1].texture[1], "Interface\\Buttons\\WHITE8X8")
+expect(display.textures[1].color[4], 0.75)
+expect(display.textures[2].texture[1], "Interface\\Buttons\\WHITE8X8")
+expect(display.textures[2].color[1], 0.2)
+expect(display.textures[3].texture[1], "Interface\\Buttons\\WHITE8X8")
+expect(display.textures[3].color[3], 0.85)
 expect(display.textures[3].width, 8)
 assert(display.textures[9].shown)
 assert(not display.textures[11].shown)
