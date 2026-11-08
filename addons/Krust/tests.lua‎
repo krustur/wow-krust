@@ -1,0 +1,73 @@
+local events, output = {}, {}
+local level, xp, maxXP = 10, 100, 1000
+local frame = {}
+function frame:RegisterEvent(event)
+    events[event] = true
+end
+function frame:SetScript(_, handler)
+    self.handler = handler
+end
+function CreateFrame()
+    return frame
+end
+function UnitLevel() return level end
+function UnitXP() return xp end
+function UnitXPMax() return maxXP end
+function print(message) output[#output + 1] = message end
+SlashCmdList = {}
+local addon = assert(loadfile("addons/Krust/Krust.lua"))
+addon("Krust")
+local function event(name, arg)
+    assert(events[name])
+    frame.handler(frame, name, arg)
+end
+local function expect(text)
+    assert(output[#output] == "Krust: " .. text, output[#output])
+end
+event("ADDON_LOADED", "Other")
+assert(#output == 0)
+event("ADDON_LOADED", "Krust")
+expect("XP reports are enabled. Usage: /krust enable | disable")
+event("PLAYER_ENTERING_WORLD")
+xp = 200
+event("PLAYER_XP_UPDATE", "player")
+expect("Gained 100 XP (10.00% of this level); 8 similar gains until the next level.")
+local count = #output
+event("PLAYER_XP_UPDATE", "pet")
+event("PLAYER_XP_UPDATE", "player")
+assert(#output == count)
+SlashCmdList.KRUST(" DISABLE ")
+expect("XP reports are disabled. Usage: /krust enable | disable")
+xp = 500
+count = #output
+event("PLAYER_XP_UPDATE", "player")
+assert(#output == count)
+SlashCmdList.KRUST("enable")
+expect("XP reports are enabled. Usage: /krust enable | disable")
+xp = 700
+event("PLAYER_XP_UPDATE", "player")
+expect("Gained 200 XP (20.00% of this level); 2 similar gains until the next level.")
+level, xp, maxXP = 11, 50, 2000
+event("PLAYER_XP_UPDATE", "player")
+expect("Gained 350 XP (17.50% of this level); 6 similar gains until the next level.")
+level, xp, maxXP = 12, 0, 0
+event("PLAYER_XP_UPDATE", "player")
+expect("Gained 1950 XP. No next level is available.")
+level, xp, maxXP = 15, 20, 3000
+event("PLAYER_XP_UPDATE", "player")
+expect("XP gain crossed multiple levels and cannot be calculated.")
+xp = 70
+event("PLAYER_XP_UPDATE", "player")
+expect("Gained 50 XP (1.67% of this level); 59 similar gains until the next level.")
+xp = 10
+count = #output
+event("PLAYER_XP_UPDATE", "player")
+assert(#output == count)
+xp = 110
+event("PLAYER_XP_UPDATE", "player")
+expect("Gained 100 XP (3.33% of this level); 29 similar gains until the next level.")
+SlashCmdList.KRUST("invalid")
+expect("XP reports are enabled. Usage: /krust enable | disable")
+KrustDB.enabled = false
+event("ADDON_LOADED", "Krust")
+expect("XP reports are disabled. Usage: /krust enable | disable")
