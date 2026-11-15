@@ -35,6 +35,10 @@ local RESTED_MARKER_COLOR = { 0.92, 0.98, 1.0, 0.95 }
 
 local QUEST_WINDOW_WIDTH = 430
 local QUEST_WINDOW_HEIGHT = 480
+local QUEST_WINDOW_MIN_WIDTH = 240
+local QUEST_WINDOW_MIN_HEIGHT = 120
+local QUEST_WINDOW_MAX_WIDTH = 1600
+local QUEST_WINDOW_MAX_HEIGHT = 1200
 local QUEST_ROW_HEIGHT = 16
 local OBJECTIVE_ROW_HEIGHT = 14
 local QUEST_SCROLL_STEP = 24
@@ -464,6 +468,15 @@ local function scrollQuestWindow(delta)
     questScrollFrame:SetVerticalScroll(nextScroll)
 end
 
+local function clampQuestScroll()
+    if questScrollFrame and questScrollFrame.GetVerticalScrollRange then
+        local maxScroll = questScrollFrame:GetVerticalScrollRange() or 0
+        if (questScrollFrame:GetVerticalScroll() or 0) > maxScroll then
+            questScrollFrame:SetVerticalScroll(maxScroll)
+        end
+    end
+end
+
 local function ensureQuestRow(index)
     if questRows[index] then
         return questRows[index]
@@ -548,13 +561,7 @@ local function updateQuestWindow()
     end
 
     questContent:SetHeight(math.max(1, -yOffset + 6))
-    if questScrollFrame and questScrollFrame.GetVerticalScrollRange then
-        local maxScroll = questScrollFrame:GetVerticalScrollRange() or 0
-        local currentScroll = questScrollFrame:GetVerticalScroll() or 0
-        if currentScroll > maxScroll then
-            questScrollFrame:SetVerticalScroll(maxScroll)
-        end
-    end
+    clampQuestScroll()
     updatingQuestWindow = false
 end
 
@@ -572,9 +579,15 @@ end
 
 local function createQuestWindow()
     questWindow = CreateFrame("Frame", "KrustQuestListWindow", UIParent)
-    questWindow:SetWidth(QUEST_WINDOW_WIDTH)
-    questWindow:SetHeight(QUEST_WINDOW_HEIGHT)
+    local width = validCoordinate(KrustDB.questWidth) and KrustDB.questWidth or QUEST_WINDOW_WIDTH
+    local height = validCoordinate(KrustDB.questHeight) and KrustDB.questHeight or QUEST_WINDOW_HEIGHT
+    width = math.max(QUEST_WINDOW_MIN_WIDTH, math.min(QUEST_WINDOW_MAX_WIDTH, width))
+    height = math.max(QUEST_WINDOW_MIN_HEIGHT, math.min(QUEST_WINDOW_MAX_HEIGHT, height))
+    questWindow:SetWidth(width)
+    questWindow:SetHeight(height)
     questWindow:SetMovable(true)
+    questWindow:SetResizable(true)
+    questWindow:SetResizeBounds(QUEST_WINDOW_MIN_WIDTH, QUEST_WINDOW_MIN_HEIGHT, QUEST_WINDOW_MAX_WIDTH, QUEST_WINDOW_MAX_HEIGHT)
     questWindow:EnableMouse(true)
     questWindow:RegisterForDrag("LeftButton")
     questWindow:SetClampedToScreen(true)
@@ -612,16 +625,43 @@ local function createQuestWindow()
 
     questScrollFrame = CreateFrame("ScrollFrame", nil, questWindow)
     questScrollFrame:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 10, -30)
-    questScrollFrame:SetPoint("BOTTOMRIGHT", questWindow, "BOTTOMRIGHT", -10, 10)
+    questScrollFrame:SetPoint("BOTTOMRIGHT", questWindow, "BOTTOMRIGHT", -10, 18)
     questScrollFrame:EnableMouseWheel(true)
     questScrollFrame:SetScript("OnMouseWheel", function(_, delta)
         scrollQuestWindow(delta)
     end)
+    questScrollFrame:SetScript("OnSizeChanged", function()
+        clampQuestScroll()
+    end)
 
     questContent = CreateFrame("Frame", nil, questScrollFrame)
-    questContent:SetWidth(QUEST_WINDOW_WIDTH - 34)
+    questContent:SetWidth(width - 34)
     questContent:SetHeight(1)
     questScrollFrame:SetScrollChild(questContent)
+    questWindow:SetScript("OnSizeChanged", function(_, newWidth)
+        questContent:SetWidth(math.max(1, newWidth - 34))
+    end)
+
+    local resizeButton = CreateFrame("Button", nil, questWindow)
+    resizeButton:SetWidth(16)
+    resizeButton:SetHeight(16)
+    resizeButton:SetPoint("BOTTOMRIGHT", questWindow, "BOTTOMRIGHT", -2, 2)
+    resizeButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    resizeButton:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" then questWindow:StartSizing("BOTTOMRIGHT") end
+    end)
+    resizeButton:SetScript("OnMouseUp", function(_, button)
+        if button == "LeftButton" then
+            questWindow:StopMovingOrSizing()
+            KrustDB.questWidth, KrustDB.questHeight = questWindow:GetWidth(), questWindow:GetHeight()
+        end
+    end)
+    resizeButton:SetScript("OnHide", function()
+        questWindow:StopMovingOrSizing()
+        KrustDB.questWidth, KrustDB.questHeight = questWindow:GetWidth(), questWindow:GetHeight()
+    end)
     questWindow:Hide()
 end
 

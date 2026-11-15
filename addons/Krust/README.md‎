@@ -14,7 +14,8 @@ to toggle the quest list window, and `/krust` to print current visibility and
 usage. Position and visibility are remembered between sessions. An existing
 enabled/disabled setting is migrated to the corresponding visibility.
 
-The Quest List window is movable and groups active quests by quest color
+The Quest List window is movable and can be resized by dragging its bottom-right
+corner; its size is remembered. It groups active quests by quest color
 (gray/green/yellow/red), then by zone. Each quest is shown as `[level] title`,
 with objective progress listed below (for example `- 3/10`). Clicking a quest
 row opens that quest in the default quest log UI.

@@ -8,6 +8,8 @@ local function newObject()
     objects[#objects + 1] = object
     function object:SetWidth(value) self.width = value end
     function object:SetHeight(value) self.height = value end
+    function object:GetWidth() return self.width end
+    function object:GetHeight() return self.height end
     function object:SetPoint(...) self.point = { ... } end
     function object:ClearAllPoints() self.point = nil end
     function object:SetAllPoints(...) self.allPoints = { ... } end
@@ -20,12 +22,18 @@ local function newObject()
     function object:Hide() self.shown = false end
     function object:IsShown() return self.shown end
     function object:SetMovable(value) self.movable = value end
+    function object:SetResizable(value) self.resizable = value end
+    function object:SetResizeBounds(...) self.resizeBounds = { ... } end
     function object:EnableMouse(value) self.mouse = value end
     function object:EnableMouseWheel(value) self.mouseWheel = value end
     function object:RegisterForDrag(value) self.dragButton = value end
     function object:SetClampedToScreen(value) self.clamped = value end
     function object:StartMoving() self.moving = true end
+    function object:StartSizing(direction) self.sizing = direction end
     function object:StopMovingOrSizing() self.moving = false end
+    function object:SetNormalTexture(value) self.normalTexture = value end
+    function object:SetHighlightTexture(value) self.highlightTexture = value end
+    function object:SetPushedTexture(value) self.pushedTexture = value end
     function object:SetScrollChild(child) self.scrollChild = child end
     function object:SetVerticalScroll(value) self.verticalScroll = value end
     function object:GetVerticalScroll() return self.verticalScroll or 0 end
@@ -285,6 +293,27 @@ local scrollFrame = findChildFrame(questWindow, function(frame)
 end)
 assert(scrollFrame and scrollFrame.scrollChild)
 local questContent = scrollFrame.scrollChild
+assert(questWindow.resizable)
+expect(questWindow.resizeBounds[1], 240)
+expect(questWindow.resizeBounds[2], 120)
+expect(questContent.width, 396)
+local resizeButton = findChildFrame(questWindow, function(frame) return frame.normalTexture ~= nil end)
+assert(resizeButton and resizeButton.scripts.OnMouseDown and resizeButton.scripts.OnMouseUp)
+resizeButton.scripts.OnMouseDown(resizeButton, "RightButton")
+expect(questWindow.sizing, nil)
+resizeButton.scripts.OnMouseDown(resizeButton, "LeftButton")
+expect(questWindow.sizing, "BOTTOMRIGHT")
+questWindow:SetWidth(600)
+questWindow:SetHeight(500)
+questWindow.scripts.OnSizeChanged(questWindow, 600, 500)
+expect(questContent.width, 566)
+scrollFrame.height = 100
+scrollFrame.verticalScroll = 9999
+scrollFrame.scripts.OnSizeChanged(scrollFrame, 580, 100)
+expect(scrollFrame.verticalScroll, scrollFrame:GetVerticalScrollRange())
+resizeButton.scripts.OnMouseUp(resizeButton, "LeftButton")
+expect(KrustDB.questWidth, 600)
+expect(KrustDB.questHeight, 500)
 
 local rowTexts = listQuestRowTexts(questContent)
 expect(rowTexts[1], "Gray Quests")
@@ -381,6 +410,20 @@ questEntries[2].objectives[1] = "Necklaces recovered: 2/6"
 event("QUEST_LOG_UPDATE")
 assert(contains(listQuestRowTexts(questContent), "- Necklaces recovered: 2/6"))
 assert(questEntries[1].isCollapsed and not questEntries[3].isCollapsed and questEntries[5].isCollapsed)
+
+setup({ questWidth = 600, questHeight = 500 })
+event("ADDON_LOADED", "Krust")
+questWindow = findFrameByName("KrustQuestListWindow")
+expect(questWindow.width, 600)
+expect(questWindow.height, 500)
+scrollFrame = findChildFrame(questWindow, function(frame) return frame.frameType == "ScrollFrame" end)
+expect(scrollFrame.scrollChild.width, 566)
+
+setup({ questWidth = -1, questHeight = 999999 })
+event("ADDON_LOADED", "Krust")
+questWindow = findFrameByName("KrustQuestListWindow")
+expect(questWindow.width, 240)
+expect(questWindow.height, 480)
 
 print = realPrint
 print("Krust tests passed")
