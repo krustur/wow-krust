@@ -241,7 +241,7 @@ event("PLAYER_ENTERING_WORLD")
 local display = findFrameByName("KrustDisplay")
 local questWindow = findFrameByName("KrustQuestListWindow")
 assert(display and questWindow)
-expect(display.width, 268)
+expect(display.width, 318)
 expect(display.height, 140)
 assert(display.shown and display.movable and display.mouse and display.clamped)
 local eta, remaining, status = display.strings[2], display.strings[3], display.strings[4]
@@ -258,10 +258,10 @@ local empty25 = display.textures[54]
 local empty26 = display.textures[56]
 expect(empty1.point[4], 10)
 expect(empty1.point[5], -24)
-expect(empty25.point[4], 250)
+expect(empty25.point[4], 298)
 expect(empty25.point[5], -24)
 expect(empty26.point[4], 10)
-expect(empty26.point[5], -34)
+expect(empty26.point[5], -36)
 local firstGroupTop = display.textures[307]
 local firstGroupBottom = display.textures[308]
 local firstGroupLeft = display.textures[309]
@@ -269,15 +269,15 @@ local firstGroupRight = display.textures[310]
 local secondGroupLeft = display.textures[313]
 expect(firstGroupTop.point[4], 10)
 expect(firstGroupTop.point[5], -24)
-expect(firstGroupTop.width, 48)
+expect(firstGroupTop.width, 58)
 expect(firstGroupTop.height, 1)
-expect(firstGroupBottom.point[5], -31)
-expect(firstGroupLeft.height, 8)
-expect(firstGroupRight.point[4], 57)
+expect(firstGroupBottom.point[5], -33)
+expect(firstGroupLeft.height, 10)
+expect(firstGroupRight.point[4], 67)
 assert(secondGroupLeft.point[4] - (firstGroupRight.point[4] + firstGroupRight.width) >= 1)
-expectApprox(firstGroupTop.color[1], 0.22)
-expectApprox(firstGroupTop.color[2], 0.5)
-expectApprox(firstGroupTop.color[3], 0.85)
+expectApprox(firstGroupTop.color[1], 0.38)
+expectApprox(firstGroupTop.color[2], 0.72)
+expectApprox(firstGroupTop.color[3], 1.0)
 
 local fill10 = display.textures[25]
 local fill11 = display.textures[27]
@@ -300,28 +300,28 @@ expectApprox(fill1.color[2], 0.8)
 expectApprox(fill1.color[3], 1.0)
 assert(display.textures[206].shown)
 assert(display.textures[244].shown)
-expectApprox(display.textures[244].width, 8)
+expectApprox(display.textures[244].width, 10)
 assert(not display.textures[245].shown)
 expectApprox(display.textures[80].color[2], 0.11)
 assert(display.textures[80].color[2] < display.textures[244].color[2])
 local marker = display.textures[206]
-expect(marker.height, 10)
-expectApprox(marker.point[4], 138)
-expect(marker.point[5], -33)
+expect(marker.height, 12)
+expectApprox(marker.point[4], 164)
+expect(marker.point[5], -35)
 for _, text in ipairs(display.strings) do
     assert(text.text ~= "Rested up to here")
 end
 
 xp, restedXP = 100, 150
 event("PLAYER_XP_UPDATE", "player")
-expectApprox(marker.point[4], 258)
+expectApprox(marker.point[4], 308)
 expect(marker.point[5], -23)
 restedXP = 155
 event("PLAYER_XP_UPDATE", "player")
-expectApprox(marker.point[4], 14)
-expect(marker.point[5], -33)
-expectApprox(display.textures[231].width, 8)
-expectApprox(display.textures[232].width, 4)
+expectApprox(marker.point[4], 15)
+expect(marker.point[5], -35)
+expectApprox(display.textures[231].width, 10)
+expectApprox(display.textures[232].width, 5)
 assert(not display.textures[233].shown)
 restedXP = 0
 event("UPDATE_EXHAUSTION")
@@ -330,10 +330,10 @@ expectApprox(fill1.color[1], 0.55)
 expectApprox(empty1.color[2], 0.19)
 restedXP = 1000
 event("UPDATE_EXHAUSTION")
-expectApprox(marker.point[4], 258)
-expect(marker.point[5], -53)
+expectApprox(marker.point[4], 308)
+expect(marker.point[5], -59)
 assert(display.textures[306].shown)
-expectApprox(display.textures[306].width, 8)
+expectApprox(display.textures[306].width, 10)
 restedXP = nil
 event("PLAYER_XP_UPDATE", "player")
 assert(not marker.shown)
@@ -658,11 +658,11 @@ UIParent:SetWidth(960)
 UIParent:SetHeight(540)
 event("ADDON_LOADED", "Krust")
 display = findFrameByName("KrustDisplay")
-expectApprox(display.width, 134)
+expectApprox(display.width, 159)
 local scaledEmpty1 = display.textures[6]
 local scaledEmpty2 = display.textures[8]
-expectApprox(scaledEmpty1.width, 4)
-expectApprox(scaledEmpty2.point[4] - scaledEmpty1.point[4], 5)
+expectApprox(scaledEmpty1.width, 5)
+expectApprox(scaledEmpty2.point[4] - scaledEmpty1.point[4], 6)
 local scaledGroupTop = display.textures[307]
 local scaledGroupRight = display.textures[310]
 local scaledGroupNextLeft = display.textures[313]

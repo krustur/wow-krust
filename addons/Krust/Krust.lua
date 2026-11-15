@@ -16,7 +16,7 @@ local updatingQuestWindow = false
 local BOX_COUNT = 100
 local BOX_COLUMNS = 25
 local BOX_ROWS = 4
-local BOX_SIZE = 8
+local BOX_SIZE = 10
 local BOX_SPACING = 2
 local BOX_GROUP_SIZE = 5
 local GRID_X = 10
@@ -29,14 +29,14 @@ local RATE_WINDOW = 30 * 60
 local MIN_RATE_TIME = 60
 
 local DISPLAY_BG_COLOR = { 0.05, 0.08, 0.15, 0.9 }
-local DISPLAY_BORDER_COLOR = { 0.22, 0.5, 0.85, 0.95 }
+local DISPLAY_BORDER_COLOR = { 0.28, 0.58, 0.92, 0.95 }
 local EMPTY_BOX_COLOR = { 0.16, 0.19, 0.25, 1 }
 local NON_RESTED_BOX_COLOR = { 0.09, 0.11, 0.15, 1 }
 local RESTED_EMPTY_BOX_COLOR = { 0.16, 0.28, 0.4, 1 }
 local ACTIVE_BOX_COLOR = { 0.55, 0.25, 0.85, 1 }
 local RESTED_BOX_COLOR = { 0.48, 0.8, 1.0, 1 }
 local RESTED_MARKER_COLOR = { 0.92, 0.98, 1.0, 0.95 }
-local BOX_GROUP_BORDER_COLOR = { 0.22, 0.5, 0.85, 0.7 }
+local BOX_GROUP_BORDER_COLOR = { 0.38, 0.72, 1.0, 0.82 }
 
 local QUEST_WINDOW_WIDTH = 430
 local QUEST_WINDOW_HEIGHT = 480
