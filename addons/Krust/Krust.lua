@@ -43,23 +43,26 @@ local QUEST_ROW_HEIGHT = 16
 local OBJECTIVE_ROW_HEIGHT = 14
 local QUEST_SCROLL_STEP = 24
 
-local QUEST_COLOR_ORDER = { "gray", "green", "yellow", "red" }
+local QUEST_COLOR_ORDER = { "gray", "green", "yellow", "orange", "red" }
 local QUEST_GROUP_LABELS = {
     gray = "Gray Quests",
     green = "Green Quests",
     yellow = "Yellow Quests",
+    orange = "Orange Quests",
     red = "Red Quests",
 }
 local QUEST_TEXT_COLORS = {
     gray = { 0.65, 0.65, 0.65, 1 },
     green = { 0.45, 0.9, 0.45, 1 },
     yellow = { 1.0, 0.88, 0.38, 1 },
+    orange = { 1.0, 0.5, 0.25, 1 },
     red = { 0.95, 0.45, 0.45, 1 },
 }
 local QUEST_GROUP_COLORS = {
     gray = { 0.7, 0.75, 0.8, 1 },
     green = { 0.55, 0.95, 0.65, 1 },
     yellow = { 1.0, 0.95, 0.6, 1 },
+    orange = { 1.0, 0.7, 0.45, 1 },
     red = { 1.0, 0.65, 0.65, 1 },
 }
 local QUEST_ZONE_COLOR = { 0.65, 0.84, 1.0, 1 }
@@ -225,20 +228,44 @@ local function validCoordinate(value)
     return type(value) == "number" and value == value and value > -100000 and value < 100000
 end
 
-local function getQuestColorKey(questLevel)
-    local playerLevel = UnitLevel("player") or 0
+local function getQuestColor(questLevel, questID)
+    local playerLevel = (UnitEffectiveLevel and UnitEffectiveLevel("player")) or UnitLevel("player") or 0
     local level = tonumber(questLevel) or playerLevel
-    local greenRange = GetQuestGreenRange and GetQuestGreenRange() or 5
-    local grayThreshold = playerLevel - greenRange
-
-    if level <= grayThreshold then
-        return "gray"
-    elseif level <= playerLevel - 3 then
-        return "green"
-    elseif level >= playerLevel + 5 then
-        return "red"
+    local color
+    if questID and C_PlayerInfo and C_PlayerInfo.GetContentDifficultyQuestForPlayer and GetDifficultyColor then
+        local difficulty = C_PlayerInfo.GetContentDifficultyQuestForPlayer(questID)
+        if difficulty ~= nil then color = GetDifficultyColor(difficulty) end
     end
-    return "yellow"
+    if not color and GetQuestDifficultyColor then
+        color = GetQuestDifficultyColor(level)
+    end
+    if color and type(color.r) == "number" and type(color.g) == "number" and type(color.b) == "number" then
+        local key
+        if math.abs(color.r - color.g) < 0.05 and math.abs(color.g - color.b) < 0.05 then
+            key = "gray"
+        elseif color.g > color.r then
+            key = "green"
+        elseif color.g < 0.3 then
+            key = "red"
+        elseif color.g < 0.75 then
+            key = "orange"
+        else
+            key = "yellow"
+        end
+        return key, { color.r, color.g, color.b, 1 }
+    end
+
+    local greenRange = GetQuestGreenRange and GetQuestGreenRange() or 5
+    if level >= playerLevel + 5 then
+        return "red", QUEST_TEXT_COLORS.red
+    elseif level >= playerLevel + 3 then
+        return "orange", QUEST_TEXT_COLORS.orange
+    elseif level >= playerLevel - 4 then
+        return "yellow", QUEST_TEXT_COLORS.yellow
+    elseif level >= playerLevel - greenRange then
+        return "green", QUEST_TEXT_COLORS.green
+    end
+    return "gray", QUEST_TEXT_COLORS.gray
 end
 
 local function questFlag(value)
@@ -336,6 +363,7 @@ local function collectActiveQuests()
                     end
                 end
             end
+            local colorKey, color = getQuestColor(info.level, info.questID)
             quests[#quests + 1] = {
                 index = i,
                 id = info.questID,
@@ -343,7 +371,8 @@ local function collectActiveQuests()
                 level = info.level or 0,
                 title = info.title,
                 objectives = objectives,
-                colorKey = getQuestColorKey(info.level),
+                colorKey = colorKey,
+                color = color,
             }
         end
         i = i + 1
@@ -361,6 +390,7 @@ local function buildQuestLines()
         gray = {},
         green = {},
         yellow = {},
+        orange = {},
         red = {},
     }
     local lines = {}
@@ -412,7 +442,7 @@ local function buildQuestLines()
                     lines[#lines + 1] = {
                         type = "quest",
                         text = string.format("[%d] %s", quest.level, quest.title),
-                        color = QUEST_TEXT_COLORS[colorKey],
+                        color = quest.color,
                         height = QUEST_ROW_HEIGHT,
                         questIndex = quest.index,
                         questID = quest.id,
@@ -813,6 +843,7 @@ events:SetScript("OnUpdate", function(_, delta)
     if pendingLevelUpdate then
         pendingLevelUpdate = false
         updateXP()
+        if frameIsShown(questWindow) then updateQuestWindow() end
     end
     elapsed = elapsed + delta
     if elapsed >= 1 then

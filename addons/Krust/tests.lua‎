@@ -71,11 +71,12 @@ local function setup(db)
     level, xp, maxXP, restedXP, now = 10, 100, 1000, nil, 0
     selectedQuest, toggleQuestLogCalls = nil, 0
     C_QuestLog, QuestMapFrame_OpenToQuestDetails = nil, nil
+    C_PlayerInfo, GetDifficultyColor, GetQuestDifficultyColor, UnitEffectiveLevel = nil, nil, nil, nil
     frames, output, objects = {}, {}, {}
     questEntries = {
         { title = "Elwynn Forest", isHeader = true, isCollapsed = false },
         { title = "Lost Necklace", level = 4, objectives = { "Necklaces recovered: 1/6" } },
-        { title = "Into the Woods", level = 7, objectives = { "Timber Wolves slain: 5/10" } },
+        { title = "Into the Woods", level = 5, objectives = { "Timber Wolves slain: 5/10" } },
         { title = "Westfall", isHeader = true, isCollapsed = false },
         { title = "Westfall Watch", level = 10, objectives = { "Defias thugs slain: 2/12" } },
         { title = "Redridge Mountains", isHeader = true, isCollapsed = false },
@@ -410,6 +411,42 @@ questEntries[2].objectives[1] = "Necklaces recovered: 2/6"
 event("QUEST_LOG_UPDATE")
 assert(contains(listQuestRowTexts(questContent), "- Necklaces recovered: 2/6"))
 assert(questEntries[1].isCollapsed and not questEntries[3].isCollapsed and questEntries[5].isCollapsed)
+
+local difficultyColors = {
+    gray = { r = 0.5, g = 0.5, b = 0.5 },
+    green = { r = 0.25, g = 0.75, b = 0.25 },
+    yellow = { r = 1, g = 0.82, b = 0 },
+    orange = { r = 1, g = 0.5, b = 0.25 },
+    red = { r = 1, g = 0.1, b = 0.1 },
+}
+local difficulties = { [101] = "green", [102] = "yellow", [103] = "gray", [104] = "orange", [105] = "red" }
+C_PlayerInfo = { GetContentDifficultyQuestForPlayer = function(id) return difficulties[id] end }
+GetDifficultyColor = function(difficulty) return difficultyColors[difficulty] end
+questEntries[#questEntries + 1] = { title = "Orange Quest", level = 13, questID = 104, objectives = {} }
+questEntries[#questEntries + 1] = { title = "Red Quest", level = 16, questID = 105, objectives = {} }
+event("QUEST_LOG_UPDATE")
+rowTexts = listQuestRowTexts(questContent)
+expect(rowTexts[1], "Gray Quests")
+expect(rowTexts[3], "[7] Into the Woods")
+expect(rowTexts[5], "Green Quests")
+expect(rowTexts[7], "[4] Lost Necklace")
+assert(contains(rowTexts, "Orange Quests") and contains(rowTexts, "Red Quests"))
+local greenRow = findQuestRow(questContent, "[4] Lost Necklace")
+expectApprox(greenRow.text.textColor[1], 0.25)
+expectApprox(greenRow.text.textColor[2], 0.75)
+expectApprox(findQuestRow(questContent, "[13] Orange Quest").text.textColor[2], 0.5)
+difficulties[101] = "gray"
+event("PLAYER_LEVEL_UP")
+eventFrame.scripts.OnUpdate(eventFrame, 0)
+expectApprox(findQuestRow(questContent, "[4] Lost Necklace").text.textColor[1], 0.5)
+
+GetDifficultyColor, C_PlayerInfo = nil, nil
+GetQuestDifficultyColor = function(questLevel)
+    if questLevel == 4 then return difficultyColors.green end
+    return difficultyColors.yellow
+end
+event("QUEST_LOG_UPDATE")
+expectApprox(findQuestRow(questContent, "[4] Lost Necklace").text.textColor[2], 0.75)
 
 setup({ questWidth = 600, questHeight = 500 })
 event("ADDON_LOADED", "Krust")
