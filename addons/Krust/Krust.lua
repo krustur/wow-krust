@@ -29,13 +29,13 @@ local RATE_WINDOW = 30 * 60
 local MIN_RATE_TIME = 60
 
 local DISPLAY_BG_COLOR = { 0.05, 0.08, 0.15, 0.9 }
-local DISPLAY_BORDER_COLOR = { 0.28, 0.58, 0.92, 0.95 }
+local DISPLAY_BORDER_COLOR = { 0.22, 0.46, 0.72, 0.92 }
 local EMPTY_BOX_COLOR = { 0.16, 0.19, 0.25, 1 }
 local NON_RESTED_BOX_COLOR = { 0.09, 0.11, 0.15, 1 }
-local RESTED_EMPTY_BOX_COLOR = { 0.16, 0.28, 0.4, 1 }
-local ACTIVE_BOX_COLOR = { 0.55, 0.25, 0.85, 1 }
-local RESTED_BOX_COLOR = { 0.48, 0.8, 1.0, 1 }
-local RESTED_MARKER_COLOR = { 0.92, 0.98, 1.0, 0.95 }
+local RESTED_EMPTY_BOX_COLOR = { 0.14, 0.22, 0.31, 1 }
+local ACTIVE_BOX_COLOR = { 0.46, 0.24, 0.72, 1 }
+local RESTED_BOX_COLOR = { 0.36, 0.62, 0.82, 1 }
+local RESTED_MARKER_COLOR = { 0.68, 0.8, 0.9, 0.9 }
 local BOX_GROUP_BORDER_COLOR = { 0.12, 0.17, 0.26, 0.9 }
 
 local QUEST_WINDOW_WIDTH = 430
