@@ -677,5 +677,29 @@ assert(scaledGroupNextLeft.point[4] - (scaledGroupRight.point[4] + scaledGroupRi
 expectApprox(scaledEmpty1.point[4] - (scaledGroupLeft.point[4] + scaledGroupLeft.width), 0.5)
 expectApprox((scaledGroupTop.point[5] - scaledGroupTop.height) - scaledEmpty1.point[5], 0.5)
 
+setup()
+UIParent:SetWidth(1440)
+UIParent:SetHeight(720)
+event("ADDON_LOADED", "Krust")
+display = findFrameByName("KrustDisplay")
+local anisotropicScaleX = UIParent:GetWidth() / GetScreenWidth()
+local anisotropicScaleY = UIParent:GetHeight() / GetScreenHeight()
+local function toPixelsX(value) return value / anisotropicScaleX end
+local function toPixelsY(value) return value / anisotropicScaleY end
+local anisotropicEmpty1 = display.textures[6]
+local anisotropicEmpty5 = display.textures[14]
+local anisotropicTop = display.textures[307]
+local anisotropicBottom = display.textures[308]
+local anisotropicLeft = display.textures[309]
+local anisotropicRight = display.textures[310]
+local anisotropicNextLeft = display.textures[313]
+expectApprox(toPixelsY(anisotropicTop.height), 1, 0.001)
+expectApprox(toPixelsX(anisotropicLeft.width), 1, 0.001)
+expectApprox(toPixelsX(anisotropicEmpty1.point[4] - (anisotropicLeft.point[4] + anisotropicLeft.width)), 1, 0.001)
+expectApprox(toPixelsX(anisotropicRight.point[4] - (anisotropicEmpty5.point[4] + anisotropicEmpty5.width)), 1, 0.001)
+expectApprox(toPixelsX(anisotropicNextLeft.point[4] - (anisotropicRight.point[4] + anisotropicRight.width)), 1, 0.001)
+expectApprox(toPixelsY((anisotropicTop.point[5] - anisotropicTop.height) - anisotropicEmpty1.point[5]), 1, 0.001)
+expectApprox(toPixelsY((anisotropicEmpty1.point[5] - anisotropicEmpty1.height) - anisotropicBottom.point[5]), 1, 0.001)
+
 print = realPrint
 print("Krust tests passed")

@@ -95,55 +95,65 @@ local function resolveGridLayout()
         heightScale = parentHeight / viewportHeight
     end
 
-    local unitsPerPixel = 1
-    if widthScale and heightScale then
-        unitsPerPixel = math.max(widthScale, heightScale)
-    elseif widthScale then
-        unitsPerPixel = widthScale
-    elseif heightScale then
-        unitsPerPixel = heightScale
-    end
-    if unitsPerPixel <= 0 then
-        unitsPerPixel = 1
+    local unitsPerPixelX = widthScale or heightScale or 1
+    local unitsPerPixelY = heightScale or widthScale or 1
+    if unitsPerPixelX <= 0 then unitsPerPixelX = 1 end
+    if unitsPerPixelY <= 0 then unitsPerPixelY = 1 end
+
+    local function toUnitsX(pixels)
+        return pixels * unitsPerPixelX
     end
 
-    local function toUnits(pixels)
-        return pixels * unitsPerPixel
+    local function toUnitsY(pixels)
+        return pixels * unitsPerPixelY
     end
 
-    local borderThickness = toUnits(1)
-    local borderPadding = toUnits(1)
-    local borderGap = toUnits(1)
-    local boxSize = toUnits(BOX_SIZE)
-    local boxSpacing = toUnits(math.max(1, BOX_SPACING))
-    local interGroupSpacing = math.max(boxSpacing, borderPadding * 2 + borderThickness * 2 + borderGap)
-    local interRowSpacing = math.max(boxSpacing, borderPadding * 2 + borderThickness * 2 + borderGap)
-    local groupBoundaryExtraSpacing = interGroupSpacing - boxSpacing
-    local rowBoundaryExtraSpacing = interRowSpacing - boxSpacing
-    local slotStep = boxSize + boxSpacing
-    local gridX = toUnits(GRID_X)
-    local gridY = toUnits(GRID_Y)
+    local borderThicknessX = toUnitsX(1)
+    local borderThicknessY = toUnitsY(1)
+    local borderPaddingX = toUnitsX(1)
+    local borderPaddingY = toUnitsY(1)
+    local borderGapX = toUnitsX(1)
+    local borderGapY = toUnitsY(1)
+    local boxWidth = toUnitsX(BOX_SIZE)
+    local boxHeight = toUnitsY(BOX_SIZE)
+    local boxSpacingX = toUnitsX(math.max(1, BOX_SPACING))
+    local boxSpacingY = toUnitsY(math.max(1, BOX_SPACING))
+    local interGroupSpacingX = math.max(boxSpacingX, borderPaddingX * 2 + borderThicknessX * 2 + borderGapX)
+    local interRowSpacingY = math.max(boxSpacingY, borderPaddingY * 2 + borderThicknessY * 2 + borderGapY)
+    local groupBoundaryExtraSpacingX = interGroupSpacingX - boxSpacingX
+    local rowBoundaryExtraSpacingY = interRowSpacingY - boxSpacingY
+    local slotStepX = boxWidth + boxSpacingX
+    local slotStepY = boxHeight + boxSpacingY
+    local gridX = toUnitsX(GRID_X)
+    local gridY = toUnitsY(GRID_Y)
     local horizontalGroupBoundaries = math.max(0, math.floor((BOX_COLUMNS - 1) / BOX_GROUP_SIZE))
     local verticalRowBoundaries = math.max(0, BOX_ROWS - 1)
-    local gridWidth = BOX_COLUMNS * boxSize + (BOX_COLUMNS - 1) * boxSpacing + horizontalGroupBoundaries * groupBoundaryExtraSpacing
-    local gridHeight = BOX_ROWS * boxSize + (BOX_ROWS - 1) * boxSpacing + verticalRowBoundaries * rowBoundaryExtraSpacing
+    local gridWidth = BOX_COLUMNS * boxWidth + (BOX_COLUMNS - 1) * boxSpacingX + horizontalGroupBoundaries * groupBoundaryExtraSpacingX
+    local gridHeight = BOX_ROWS * boxHeight + (BOX_ROWS - 1) * boxSpacingY + verticalRowBoundaries * rowBoundaryExtraSpacingY
 
     return {
-        unitsPerPixel = unitsPerPixel,
-        boxSize = boxSize,
-        boxSpacing = boxSpacing,
-        slotStep = slotStep,
-        borderThickness = borderThickness,
-        borderPadding = borderPadding,
-        borderGap = borderGap,
-        groupBoundaryExtraSpacing = groupBoundaryExtraSpacing,
-        rowBoundaryExtraSpacing = rowBoundaryExtraSpacing,
+        unitsPerPixelX = unitsPerPixelX,
+        unitsPerPixelY = unitsPerPixelY,
+        boxWidth = boxWidth,
+        boxHeight = boxHeight,
+        boxSpacingX = boxSpacingX,
+        boxSpacingY = boxSpacingY,
+        slotStepX = slotStepX,
+        slotStepY = slotStepY,
+        borderThicknessX = borderThicknessX,
+        borderThicknessY = borderThicknessY,
+        borderPaddingX = borderPaddingX,
+        borderPaddingY = borderPaddingY,
+        borderGapX = borderGapX,
+        borderGapY = borderGapY,
+        groupBoundaryExtraSpacingX = groupBoundaryExtraSpacingX,
+        rowBoundaryExtraSpacingY = rowBoundaryExtraSpacingY,
         gridX = gridX,
         gridY = gridY,
         gridWidth = gridWidth,
         gridHeight = gridHeight,
         displayWidth = gridX * 2 + gridWidth,
-        displayHeight = toUnits(DISPLAY_HEIGHT),
+        displayHeight = toUnitsY(DISPLAY_HEIGHT),
     }
 end
 
@@ -155,11 +165,11 @@ local function getGridLayout()
 end
 
 local function getColumnOffset(layout, column)
-    return column * layout.slotStep + math.floor(column / BOX_GROUP_SIZE) * layout.groupBoundaryExtraSpacing
+    return column * layout.slotStepX + math.floor(column / BOX_GROUP_SIZE) * layout.groupBoundaryExtraSpacingX
 end
 
 local function getRowOffset(layout, row)
-    return row * layout.slotStep + row * layout.rowBoundaryExtraSpacing
+    return row * layout.slotStepY + row * layout.rowBoundaryExtraSpacingY
 end
 
 local function frameIsShown(frame)
@@ -218,38 +228,40 @@ local function addPanelChrome(frame, bgColor, borderColor)
     setTextureColor(right, borderColor)
 end
 
-local function addSlotGroupBorder(parent, left, top, width, height, borderThickness, borderPadding)
-    local thickness = math.max(0.001, borderThickness or 1)
-    local padding = math.max(0.001, borderPadding or thickness)
-    local outerLeft = left - (padding + thickness)
-    local outerTop = top + padding + thickness
-    local outerWidth = width + 2 * (padding + thickness)
-    local outerHeight = height + 2 * (padding + thickness)
+local function addSlotGroupBorder(parent, left, top, width, height, borderThicknessX, borderThicknessY, borderPaddingX, borderPaddingY)
+    local thicknessX = math.max(0.001, borderThicknessX or 1)
+    local thicknessY = math.max(0.001, borderThicknessY or 1)
+    local paddingX = math.max(0.001, borderPaddingX or thicknessX)
+    local paddingY = math.max(0.001, borderPaddingY or thicknessY)
+    local outerLeft = left - (paddingX + thicknessX)
+    local outerTop = top + paddingY + thicknessY
+    local outerWidth = width + 2 * (paddingX + thicknessX)
+    local outerHeight = height + 2 * (paddingY + thicknessY)
 
     local topBorder = parent:CreateTexture(nil, "ARTWORK")
     topBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop)
     topBorder:SetWidth(outerWidth)
-    topBorder:SetHeight(thickness)
+    topBorder:SetHeight(thicknessY)
     topBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(topBorder, BOX_GROUP_BORDER_COLOR)
 
     local bottomBorder = parent:CreateTexture(nil, "ARTWORK")
-    bottomBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop - (outerHeight - thickness))
+    bottomBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop - (outerHeight - thicknessY))
     bottomBorder:SetWidth(outerWidth)
-    bottomBorder:SetHeight(thickness)
+    bottomBorder:SetHeight(thicknessY)
     bottomBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(bottomBorder, BOX_GROUP_BORDER_COLOR)
 
     local leftBorder = parent:CreateTexture(nil, "ARTWORK")
     leftBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop)
-    leftBorder:SetWidth(thickness)
+    leftBorder:SetWidth(thicknessX)
     leftBorder:SetHeight(outerHeight)
     leftBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(leftBorder, BOX_GROUP_BORDER_COLOR)
 
     local rightBorder = parent:CreateTexture(nil, "ARTWORK")
-    rightBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft + outerWidth - thickness, outerTop)
-    rightBorder:SetWidth(thickness)
+    rightBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft + outerWidth - thicknessX, outerTop)
+    rightBorder:SetWidth(thicknessX)
     rightBorder:SetHeight(outerHeight)
     rightBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(rightBorder, BOX_GROUP_BORDER_COLOR)
@@ -276,9 +288,9 @@ local function updateRestedMarker(xp, maxXP, restedXP)
     local boxIndex = math.max(0, math.ceil(progress) - 1)
     local column = boxIndex % BOX_COLUMNS
     local row = math.floor(boxIndex / BOX_COLUMNS)
-    local markerOffset = getColumnOffset(layout, column) + (progress - boxIndex) * layout.boxSize
+    local markerOffset = getColumnOffset(layout, column) + (progress - boxIndex) * layout.boxWidth
     restedMarker:ClearAllPoints()
-    restedMarker:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX + markerOffset, layout.gridY - getRowOffset(layout, row) + layout.borderThickness)
+    restedMarker:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX + markerOffset, layout.gridY - getRowOffset(layout, row) + layout.borderThicknessY)
     restedMarker:Show()
 end
 
@@ -297,14 +309,14 @@ local function updateGrid(xp, maxXP)
         setTextureColor(boxBackgrounds[i], isRested and NON_RESTED_BOX_COLOR or EMPTY_BOX_COLOR)
         setTextureColor(boxes[i], fillColor)
         local fill = math.max(0, math.min(1, progress - (i - 1)))
-        boxes[i]:SetWidth(math.max(0.001, layout.boxSize * fill))
+        boxes[i]:SetWidth(math.max(0.001, layout.boxWidth * fill))
         if fill > 0 then
             boxes[i]:Show()
         else
             boxes[i]:Hide()
         end
         local restedFill = math.max(0, math.min(1, restedEnd - (i - 1)))
-        restedBackgrounds[i]:SetWidth(math.max(0.001, layout.boxSize * restedFill))
+        restedBackgrounds[i]:SetWidth(math.max(0.001, layout.boxWidth * restedFill))
         if restedFill > 0 then
             restedBackgrounds[i]:Show()
         else
@@ -884,22 +896,22 @@ local function createDisplay()
     addPanelChrome(display, DISPLAY_BG_COLOR, DISPLAY_BORDER_COLOR)
 
     local title = display:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    title:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, -8 * layout.unitsPerPixel)
+    title:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, -8 * layout.unitsPerPixelY)
     title:SetText("Krust XP")
 
     for i = 1, BOX_COUNT do
         local column = (i - 1) % BOX_COLUMNS
         local row = math.floor((i - 1) / BOX_COLUMNS)
         local empty = display:CreateTexture(nil, "BORDER")
-        empty:SetWidth(layout.boxSize)
-        empty:SetHeight(layout.boxSize)
+        empty:SetWidth(layout.boxWidth)
+        empty:SetHeight(layout.boxHeight)
         empty:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX + getColumnOffset(layout, column), layout.gridY - getRowOffset(layout, row))
         empty:SetTexture("Interface\\Buttons\\WHITE8X8")
         setTextureColor(empty, EMPTY_BOX_COLOR)
         boxBackgrounds[i] = empty
 
         local fill = display:CreateTexture(nil, "ARTWORK")
-        fill:SetHeight(layout.boxSize)
+        fill:SetHeight(layout.boxHeight)
         fill:SetPoint("TOPLEFT", empty, "TOPLEFT", 0, 0)
         fill:SetTexture("Interface\\Buttons\\WHITE8X8")
         setTextureColor(fill, ACTIVE_BOX_COLOR)
@@ -907,15 +919,15 @@ local function createDisplay()
     end
 
     restedMarker = display:CreateTexture(nil, "OVERLAY")
-    restedMarker:SetWidth(2 * layout.unitsPerPixel)
-    restedMarker:SetHeight(layout.boxSize + 2 * layout.borderThickness)
+    restedMarker:SetWidth(2 * layout.unitsPerPixelX)
+    restedMarker:SetHeight(layout.boxHeight + 2 * layout.borderThicknessY)
     restedMarker:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(restedMarker, RESTED_MARKER_COLOR)
     restedMarker:Hide()
 
     for i = 1, BOX_COUNT do
         local rested = display:CreateTexture(nil, "BORDER")
-        rested:SetHeight(layout.boxSize)
+        rested:SetHeight(layout.boxHeight)
         rested:SetPoint("TOPLEFT", boxBackgrounds[i], "TOPLEFT", 0, 0)
         rested:SetTexture("Interface\\Buttons\\WHITE8X8")
         setTextureColor(rested, RESTED_EMPTY_BOX_COLOR)
@@ -927,30 +939,40 @@ local function createDisplay()
         for column = 0, BOX_COLUMNS - 1, BOX_GROUP_SIZE do
             local columnsInGroup = math.min(BOX_GROUP_SIZE, BOX_COLUMNS - column)
             local left = layout.gridX + getColumnOffset(layout, column)
-            local width = columnsInGroup * layout.boxSize + (columnsInGroup - 1) * layout.boxSpacing
-            addSlotGroupBorder(display, left, top, width, layout.boxSize, layout.borderThickness, layout.borderPadding)
+            local width = columnsInGroup * layout.boxWidth + (columnsInGroup - 1) * layout.boxSpacingX
+            addSlotGroupBorder(
+                display,
+                left,
+                top,
+                width,
+                layout.boxHeight,
+                layout.borderThicknessX,
+                layout.borderThicknessY,
+                layout.borderPaddingX,
+                layout.borderPaddingY
+            )
         end
     end
 
     etaText = display:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    etaText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 8 * layout.unitsPerPixel)
+    etaText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 8 * layout.unitsPerPixelY)
     etaText:SetTextColor(0.85, 0.95, 1.0)
 
     remainingText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    remainingText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 22 * layout.unitsPerPixel)
+    remainingText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 22 * layout.unitsPerPixelY)
     remainingText:SetTextColor(0.85, 0.9, 1.0)
 
     statusText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    statusText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 36 * layout.unitsPerPixel)
+    statusText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 36 * layout.unitsPerPixelY)
     statusText:SetWidth(layout.displayWidth - layout.gridX * 2)
     statusText:SetJustifyH("LEFT")
     statusText:SetTextColor(0.85, 0.9, 1.0)
     statusText:SetText("Waiting for an XP gain.")
 
     local questListButton = CreateFrame("Button", nil, display, "UIPanelButtonTemplate")
-    questListButton:SetWidth(130 * layout.unitsPerPixel)
-    questListButton:SetHeight(20 * layout.unitsPerPixel)
-    questListButton:SetPoint("BOTTOMRIGHT", display, "BOTTOMRIGHT", -layout.gridX, 8 * layout.unitsPerPixel)
+    questListButton:SetWidth(130 * layout.unitsPerPixelX)
+    questListButton:SetHeight(20 * layout.unitsPerPixelY)
+    questListButton:SetPoint("BOTTOMRIGHT", display, "BOTTOMRIGHT", -layout.gridX, 8 * layout.unitsPerPixelY)
     questListButton:SetText("Krust Quest List")
     questListButton:SetScript("OnClick", toggleQuestWindow)
 
