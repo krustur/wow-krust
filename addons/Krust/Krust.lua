@@ -634,6 +634,7 @@ end
 
 local function createQuestWindow()
     questWindow = CreateFrame("Frame", "KrustQuestListWindow", UIParent)
+    table.insert(UISpecialFrames, "KrustQuestListWindow")
     local width = validCoordinate(KrustDB.questWidth) and KrustDB.questWidth or QUEST_WINDOW_WIDTH
     local height = validCoordinate(KrustDB.questHeight) and KrustDB.questHeight or QUEST_WINDOW_HEIGHT
     width = math.max(QUEST_WINDOW_MIN_WIDTH, math.min(QUEST_WINDOW_MAX_WIDTH, width))

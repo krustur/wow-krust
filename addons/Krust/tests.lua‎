@@ -83,6 +83,7 @@ local function setup(db)
     GetQuestLogQuestText = nil
     C_PlayerInfo, GetDifficultyColor, GetQuestDifficultyColor, UnitEffectiveLevel = nil, nil, nil, nil
     frames, output, objects = {}, {}, {}
+    UISpecialFrames = { "OtherWindow" }
     questEntries = {
         { title = "Elwynn Forest", isHeader = true, isCollapsed = false },
         { title = "Lost Necklace", level = 4, objectives = { "Necklaces recovered: 1/6" } },
@@ -101,6 +102,7 @@ local function setup(db)
         frame.name = name
         frame.parent = parent
         frame.template = template
+        if name then _G[name] = frame end
         frames[#frames + 1] = frame
         return frame
     end
@@ -322,6 +324,25 @@ local questButton = findChildFrame(display, function(frame)
 end)
 assert(questButton and questButton.scripts.OnClick)
 assert(not questWindow.shown)
+questButton.scripts.OnClick(questButton)
+assert(questWindow.shown)
+expect(UISpecialFrames[1], "OtherWindow")
+expect(UISpecialFrames[2], "KrustQuestListWindow")
+expect(#UISpecialFrames, 2)
+local function closeSpecialWindows()
+    local closed = false
+    for _, name in ipairs(UISpecialFrames) do
+        local frame = _G[name]
+        if frame and frame:IsShown() then
+            frame:Hide()
+            closed = true
+        end
+    end
+    return closed
+end
+assert(closeSpecialWindows())
+assert(not questWindow.shown and display.shown)
+assert(not closeSpecialWindows())
 questButton.scripts.OnClick(questButton)
 assert(questWindow.shown)
 

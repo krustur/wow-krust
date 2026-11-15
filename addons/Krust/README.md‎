@@ -15,7 +15,7 @@ usage. Position and visibility are remembered between sessions. An existing
 enabled/disabled setting is migrated to the corresponding visibility.
 
 The Krust Quest List window is movable and can be resized by dragging its bottom-right
-corner; its size is remembered. It groups active quests by quest color
+corner; its size is remembered. Press Escape to close it. It groups active quests by quest color
 (gray/green/yellow/orange/red), then by zone. Each quest is shown as `[level] title`,
 with objective descriptions, progress, and available hints listed below. Long
 text wraps to fit the window. Clicking a quest row opens that quest in the
