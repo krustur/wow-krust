@@ -5,6 +5,7 @@ local boxes = {}
 local boxBackgrounds = {}
 local restedBackgrounds = {}
 local questRows = {}
+local questLines = {}
 local etaText, remainingText, statusText
 local lastLevel, lastXP, lastMaxXP
 local rateStart, gains = nil, {}
@@ -555,21 +556,13 @@ local function ensureQuestRow(index)
     return row
 end
 
-local function updateQuestWindow()
-    if not questWindow or not questContent or updatingQuestWindow then
-        return
-    end
-    updatingQuestWindow = true
-
-    local lines = buildQuestLines()
+local function layoutQuestLines()
     local yOffset = -4
-    for i, line in ipairs(lines) do
+    for i, line in ipairs(questLines) do
         local row = ensureQuestRow(i)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", questContent, "TOPLEFT", 0, yOffset)
         row:SetPoint("TOPRIGHT", questContent, "TOPRIGHT", 0, yOffset)
-        row:SetHeight(line.height)
-
         row.text:ClearAllPoints()
         local textInset = 4
         if line.type == "zone" then
@@ -580,19 +573,21 @@ local function updateQuestWindow()
             textInset = 32
         end
         row.text:SetPoint("TOPLEFT", row, "TOPLEFT", textInset, -1)
-        row.text:SetPoint("TOPRIGHT", row, "TOPRIGHT", -4, -1)
+        row.text:SetWidth(math.max(1, questContent:GetWidth() - textInset - 4))
         row.text:SetText(line.text)
         row.text:SetTextColor(line.color[1], line.color[2], line.color[3], line.color[4] or 1)
+        local height = math.max(line.height, (row.text:GetStringHeight() or 0) + 2)
+        row:SetHeight(height)
         row.questIndex = line.questIndex
         row.questID = line.questID
         row.questTitle = line.questTitle
         row.questLevel = line.questLevel
         row.highlight:Hide()
         row:Show()
-        yOffset = yOffset - line.height
+        yOffset = yOffset - height
     end
 
-    for i = #lines + 1, #questRows do
+    for i = #questLines + 1, #questRows do
         questRows[i]:Hide()
         questRows[i].questIndex = nil
         questRows[i].questID = nil
@@ -602,6 +597,15 @@ local function updateQuestWindow()
 
     questContent:SetHeight(math.max(1, -yOffset + 6))
     clampQuestScroll()
+end
+
+local function updateQuestWindow()
+    if not questWindow or not questContent or updatingQuestWindow then
+        return
+    end
+    updatingQuestWindow = true
+    questLines = buildQuestLines()
+    layoutQuestLines()
     updatingQuestWindow = false
 end
 
@@ -681,6 +685,7 @@ local function createQuestWindow()
     questScrollFrame:SetScrollChild(questContent)
     questWindow:SetScript("OnSizeChanged", function(_, newWidth)
         questContent:SetWidth(math.max(1, newWidth - 34))
+        if #questLines > 0 then layoutQuestLines() end
         if newWidth < 320 then hint:Hide() else hint:Show() end
     end)
 

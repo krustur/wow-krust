@@ -16,6 +16,14 @@ local function newObject()
     function object:SetTexture(...) self.texture = { ... } end
     function object:SetVertexColor(...) self.color = { ... } end
     function object:SetText(value) self.text = value end
+    function object:GetStringHeight()
+        local width = math.max(1, math.floor((self.width or 400) / 7))
+        local lines = 0
+        for line in ((self.text or "") .. "\n"):gmatch("(.-)\n") do
+            lines = lines + math.max(1, math.ceil(#line / width))
+        end
+        return lines * 12
+    end
     function object:SetTextColor(...) self.textColor = { ... } end
     function object:SetJustifyH(value) self.justify = value end
     function object:Show() self.shown = true end
@@ -363,6 +371,27 @@ assert(westfallRow and westfallRow.questIndex and westfallRow.scripts.OnClick)
 westfallRow.scripts.OnClick(westfallRow)
 expect(toggleQuestLogCalls, 1)
 expect(selectedQuest, westfallRow.questIndex)
+
+local longTitle = string.rep("A very long quest title ", 5)
+local longObjective = string.rep("A long objective with directions ", 8) .. "\nMore directions"
+questEntries[5].title = longTitle
+questEntries[5].objectives[1] = longObjective
+event("QUEST_LOG_UPDATE")
+questWindow.scripts.OnSizeChanged(questWindow, 240, 500)
+local wrappedQuest = findQuestRow(questContent, "[10] " .. longTitle)
+local wrappedObjective = findQuestRow(questContent, "- " .. longObjective)
+assert(wrappedQuest.height > 16 and wrappedObjective.height > 14)
+expect(wrappedObjective.point[5], wrappedQuest.point[5] - wrappedQuest.height)
+local narrowHeight = questContent.height
+local narrowObjectiveHeight = wrappedObjective.height
+questWindow.scripts.OnSizeChanged(questWindow, 600, 500)
+assert(wrappedObjective.height < narrowObjectiveHeight)
+assert(questContent.height < narrowHeight)
+wrappedQuest.scripts.OnClick(wrappedQuest)
+expect(selectedQuest, wrappedQuest.questIndex)
+questEntries[5].title = "Westfall Watch"
+questEntries[5].objectives[1] = "Defias thugs slain: 2/12"
+event("QUEST_LOG_UPDATE")
 
 SlashCmdList.KRUST("quests")
 assert(not questWindow.shown)
