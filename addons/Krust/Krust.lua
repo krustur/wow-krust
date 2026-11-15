@@ -237,7 +237,15 @@ local function getQuestColorKey(questLevel)
     return "yellow"
 end
 
-local function openQuestInQuestLog(questTitle, questLevel, fallbackIndex)
+local function questFlag(value)
+    return value and value ~= 0
+end
+
+local function openQuestInQuestLog(questTitle, questLevel, fallbackIndex, questID)
+    if questID and QuestMapFrame_OpenToQuestDetails then
+        QuestMapFrame_OpenToQuestDetails(questID)
+        return
+    end
     if not questTitle and not fallbackIndex then
         return
     end
@@ -254,7 +262,7 @@ local function openQuestInQuestLog(questTitle, questLevel, fallbackIndex)
     if questTitle and GetNumQuestLogEntries and GetQuestLogTitle then
         for i = 1, GetNumQuestLogEntries() do
             local title, level, _, isHeader = GetQuestLogTitle(i)
-            if not isHeader and title == questTitle and level == questLevel then
+            if not questFlag(isHeader) and title == questTitle and level == questLevel then
                 questIndex = i
                 break
             end
@@ -276,57 +284,69 @@ end
 
 local function collectActiveQuests()
     local quests = {}
-    if not GetNumQuestLogEntries or not GetQuestLogTitle then
+    local modern = C_QuestLog and C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetInfo
+    local getCount = modern and C_QuestLog.GetNumQuestLogEntries or GetNumQuestLogEntries
+    if not getCount or (not modern and not GetQuestLogTitle) then
         return quests
     end
 
-    local collapsedHeaderCounts = {}
-    local totalEntries = GetNumQuestLogEntries()
-    for i = 1, totalEntries do
-        local title, _, _, isHeader, isCollapsed = GetQuestLogTitle(i)
-        if isHeader and isCollapsed and title and title ~= "" then
-            collapsedHeaderCounts[title] = (collapsedHeaderCounts[title] or 0) + 1
+    local function getInfo(index)
+        if modern then
+            return C_QuestLog.GetInfo(index)
         end
+        local title, level, _, isHeader, isCollapsed = GetQuestLogTitle(index)
+        return { title = title, level = level, isHeader = isHeader, isCollapsed = isCollapsed }
     end
 
-    if ExpandQuestHeader then
-        ExpandQuestHeader(0)
+    local expand, collapse
+    if modern and C_QuestLog.ExpandQuestHeader and C_QuestLog.CollapseQuestHeader then
+        expand, collapse = C_QuestLog.ExpandQuestHeader, C_QuestLog.CollapseQuestHeader
+    else
+        expand, collapse = ExpandQuestHeader, CollapseQuestHeader
     end
-
+    local expandedHeaders = {}
     local currentZone = "Unknown Zone"
-    totalEntries = GetNumQuestLogEntries()
-    for i = 1, totalEntries do
-        local title, level, _, isHeader = GetQuestLogTitle(i)
-        if isHeader then
-            currentZone = (title and title ~= "") and title or "Unknown Zone"
-        elseif title then
+    local i = 1
+    while i <= (getCount() or 0) do
+        local info = getInfo(i)
+        if info and questFlag(info.isHeader) then
+            currentZone = (info.title and info.title ~= "") and info.title or "Unknown Zone"
+            if questFlag(info.isCollapsed) and expand and collapse then
+                expand(i)
+                expandedHeaders[#expandedHeaders + 1] = i
+            end
+        elseif info and info.title then
             local objectives = {}
-            local objectiveCount = GetNumQuestLeaderBoards and GetNumQuestLeaderBoards(i) or 0
-            for objectiveIndex = 1, objectiveCount do
-                local objectiveText = GetQuestLogLeaderBoard and GetQuestLogLeaderBoard(objectiveIndex, i)
-                if objectiveText and objectiveText ~= "" then
-                    objectives[#objectives + 1] = objectiveText
+            if modern and C_QuestLog.GetQuestObjectives and info.questID then
+                for _, objective in ipairs(C_QuestLog.GetQuestObjectives(info.questID) or {}) do
+                    if objective.text and objective.text ~= "" then
+                        objectives[#objectives + 1] = objective.text
+                    end
+                end
+            elseif not modern then
+                local objectiveCount = GetNumQuestLeaderBoards and GetNumQuestLeaderBoards(i) or 0
+                for objectiveIndex = 1, objectiveCount do
+                    local objectiveText = GetQuestLogLeaderBoard and GetQuestLogLeaderBoard(objectiveIndex, i)
+                    if objectiveText and objectiveText ~= "" then
+                        objectives[#objectives + 1] = objectiveText
+                    end
                 end
             end
             quests[#quests + 1] = {
                 index = i,
+                id = info.questID,
                 zone = currentZone,
-                level = level or 0,
-                title = title,
+                level = info.level or 0,
+                title = info.title,
                 objectives = objectives,
-                colorKey = getQuestColorKey(level),
+                colorKey = getQuestColorKey(info.level),
             }
         end
+        i = i + 1
     end
 
-    if CollapseQuestHeader and next(collapsedHeaderCounts) then
-        for i = GetNumQuestLogEntries(), 1, -1 do
-            local title, _, _, isHeader = GetQuestLogTitle(i)
-            if isHeader and title and collapsedHeaderCounts[title] and collapsedHeaderCounts[title] > 0 then
-                CollapseQuestHeader(i)
-                collapsedHeaderCounts[title] = collapsedHeaderCounts[title] - 1
-            end
-        end
+    for j = #expandedHeaders, 1, -1 do
+        collapse(expandedHeaders[j])
     end
 
     return quests
@@ -391,6 +411,7 @@ local function buildQuestLines()
                         color = QUEST_TEXT_COLORS[colorKey],
                         height = QUEST_ROW_HEIGHT,
                         questIndex = quest.index,
+                        questID = quest.id,
                         questLevel = quest.level,
                         questTitle = quest.title,
                     }
@@ -473,7 +494,7 @@ local function ensureQuestRow(index)
     end)
     row:SetScript("OnClick", function(self)
         if self.questIndex then
-            openQuestInQuestLog(self.questTitle, self.questLevel, self.questIndex)
+            openQuestInQuestLog(self.questTitle, self.questLevel, self.questIndex, self.questID)
         end
     end)
 
@@ -510,6 +531,7 @@ local function updateQuestWindow()
         row.text:SetText(line.text)
         row.text:SetTextColor(line.color[1], line.color[2], line.color[3], line.color[4] or 1)
         row.questIndex = line.questIndex
+        row.questID = line.questID
         row.questTitle = line.questTitle
         row.questLevel = line.questLevel
         row.highlight:Hide()
@@ -520,6 +542,7 @@ local function updateQuestWindow()
     for i = #lines + 1, #questRows do
         questRows[i]:Hide()
         questRows[i].questIndex = nil
+        questRows[i].questID = nil
         questRows[i].questTitle = nil
         questRows[i].questLevel = nil
     end

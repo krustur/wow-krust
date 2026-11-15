@@ -62,6 +62,7 @@ local realPrint = print
 local function setup(db)
     level, xp, maxXP, restedXP, now = 10, 100, 1000, nil, 0
     selectedQuest, toggleQuestLogCalls = nil, 0
+    C_QuestLog, QuestMapFrame_OpenToQuestDetails = nil, nil
     frames, output, objects = {}, {}, {}
     questEntries = {
         { title = "Elwynn Forest", isHeader = true, isCollapsed = false },
@@ -110,9 +111,9 @@ local function setup(db)
         local entry = questEntries[index]
         if not entry then return end
         if entry.isHeader then
-            return entry.title, nil, nil, true, entry.isCollapsed
+            return entry.title, nil, nil, 1, entry.isCollapsed and 1 or 0
         end
-        return entry.title, entry.level, nil, false, false
+        return entry.title, entry.level, nil, 0, 0
     end
     function ExpandQuestHeader(index)
         if index == 0 then
@@ -313,6 +314,73 @@ SlashCmdList.KRUST("show")
 assert(display.shown and KrustDB.shown)
 SlashCmdList.KRUST("invalid")
 expect(output[#output], "Krust: Display is shown. Usage: /krust show | hide | quests")
+
+setup()
+questEntries = {
+    { title = "Elwynn Forest", isHeader = true, isCollapsed = true },
+    { title = "Lost Necklace", level = 4, questID = 101, objectives = { "Necklaces recovered: 1/6" } },
+    { title = "Westfall", isHeader = true, isCollapsed = false },
+    { title = "Westfall Watch", level = 10, questID = 102, objectives = { "Defias thugs slain: 2/12" } },
+    { title = "Elwynn Forest", isHeader = true, isCollapsed = true },
+    { title = "Into the Woods", level = 7, questID = 103, objectives = {} },
+}
+local function visibleEntries()
+    local visible, collapsed = {}, false
+    for _, entry in ipairs(questEntries) do
+        if entry.isHeader then
+            collapsed = entry.isCollapsed
+            visible[#visible + 1] = entry
+        elseif not collapsed then
+            visible[#visible + 1] = entry
+        end
+    end
+    return visible
+end
+GetNumQuestLogEntries, GetQuestLogTitle = nil, nil
+ExpandQuestHeader = function(index)
+    visibleEntries()[index].isCollapsed = false
+    event("QUEST_LOG_UPDATE")
+end
+CollapseQuestHeader = function(index)
+    visibleEntries()[index].isCollapsed = true
+    event("QUEST_LOG_UPDATE")
+end
+C_QuestLog = {
+    GetNumQuestLogEntries = function() return #visibleEntries() end,
+    GetInfo = function(index) return visibleEntries()[index] end,
+    GetQuestObjectives = function(id)
+        for _, entry in ipairs(questEntries) do
+            if entry.questID == id then
+                local objectives = {}
+                for _, text in ipairs(entry.objectives) do
+                    objectives[#objectives + 1] = { text = text }
+                end
+                return objectives
+            end
+        end
+    end,
+}
+QuestMapFrame_OpenToQuestDetails = function(id) selectedQuest = id end
+event("ADDON_LOADED", "Krust")
+event("PLAYER_ENTERING_WORLD")
+questWindow = findFrameByName("KrustQuestListWindow")
+SlashCmdList.KRUST("quests")
+scrollFrame = findChildFrame(questWindow, function(frame) return frame.frameType == "ScrollFrame" end)
+questContent = scrollFrame.scrollChild
+rowTexts = listQuestRowTexts(questContent)
+assert(contains(rowTexts, "[4] Lost Necklace"))
+assert(contains(rowTexts, "- Necklaces recovered: 1/6"))
+assert(contains(rowTexts, "[10] Westfall Watch"))
+assert(contains(rowTexts, "[7] Into the Woods"))
+assert(contains(rowTexts, "- No objective progress details."))
+assert(questEntries[1].isCollapsed and not questEntries[3].isCollapsed and questEntries[5].isCollapsed)
+local modernRow = findQuestRow(questContent, "[7] Into the Woods")
+modernRow.scripts.OnClick(modernRow)
+expect(selectedQuest, 103)
+questEntries[2].objectives[1] = "Necklaces recovered: 2/6"
+event("QUEST_LOG_UPDATE")
+assert(contains(listQuestRowTexts(questContent), "- Necklaces recovered: 2/6"))
+assert(questEntries[1].isCollapsed and not questEntries[3].isCollapsed and questEntries[5].isCollapsed)
 
 print = realPrint
 print("Krust tests passed")
