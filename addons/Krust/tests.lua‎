@@ -96,6 +96,8 @@ local function setup(db)
 
     UIParent = newObject()
     UIParent.left, UIParent.bottom = 10, 20
+    UIParent:SetWidth(1920)
+    UIParent:SetHeight(1080)
     function CreateFrame(frameType, name, parent, template)
         local frame = newObject()
         frame.frameType = frameType
@@ -113,6 +115,8 @@ local function setup(db)
     function UnitLevel() return level end
     function UnitXP() return xp end
     function UnitXPMax() return maxXP end
+    function GetScreenWidth() return 1920 end
+    function GetScreenHeight() return 1080 end
     function GetXPExhaustion() return restedXP end
     function GetQuestGreenRange() return 5 end
     function GetTime() return now end
@@ -262,12 +266,15 @@ local firstGroupTop = display.textures[307]
 local firstGroupBottom = display.textures[308]
 local firstGroupLeft = display.textures[309]
 local firstGroupRight = display.textures[310]
-expect(firstGroupTop.point[4], 9)
-expect(firstGroupTop.point[5], -23)
-expect(firstGroupTop.width, 50)
-expect(firstGroupBottom.point[5], -32)
-expect(firstGroupLeft.height, 10)
-expect(firstGroupRight.point[4], 58)
+local secondGroupLeft = display.textures[313]
+expect(firstGroupTop.point[4], 10)
+expect(firstGroupTop.point[5], -24)
+expect(firstGroupTop.width, 48)
+expect(firstGroupTop.height, 1)
+expect(firstGroupBottom.point[5], -31)
+expect(firstGroupLeft.height, 8)
+expect(firstGroupRight.point[4], 57)
+assert(secondGroupLeft.point[4] - (firstGroupRight.point[4] + firstGroupRight.width) >= 1)
 expectApprox(firstGroupTop.color[1], 0.22)
 expectApprox(firstGroupTop.color[2], 0.5)
 expectApprox(firstGroupTop.color[3], 0.85)
@@ -645,6 +652,22 @@ event("PLAYER_XP_UPDATE", "player")
 expect(eta.text, "ETA: No next level")
 expect(remaining.text, "Remaining XP: No next level")
 assert(not display.textures[206].shown and not display.textures[207].shown)
+
+setup()
+UIParent:SetWidth(960)
+UIParent:SetHeight(540)
+event("ADDON_LOADED", "Krust")
+display = findFrameByName("KrustDisplay")
+expectApprox(display.width, 134)
+local scaledEmpty1 = display.textures[6]
+local scaledEmpty2 = display.textures[8]
+expectApprox(scaledEmpty1.width, 4)
+expectApprox(scaledEmpty2.point[4] - scaledEmpty1.point[4], 5)
+local scaledGroupTop = display.textures[307]
+local scaledGroupRight = display.textures[310]
+local scaledGroupNextLeft = display.textures[313]
+expectApprox(scaledGroupTop.height, 0.5)
+assert(scaledGroupNextLeft.point[4] - (scaledGroupRight.point[4] + scaledGroupRight.width) >= 0.5)
 
 print = realPrint
 print("Krust tests passed")
