@@ -26,6 +26,7 @@ local function newObject()
     end
     function object:SetTextColor(...) self.textColor = { ... } end
     function object:SetJustifyH(value) self.justify = value end
+    function object:SetWordWrap(value) self.wordWrap = value end
     function object:Show() self.shown = true end
     function object:Hide() self.shown = false end
     function object:IsShown() return self.shown end
@@ -79,6 +80,7 @@ local function setup(db)
     level, xp, maxXP, restedXP, now = 10, 100, 1000, nil, 0
     selectedQuest, toggleQuestLogCalls = nil, 0
     C_QuestLog, QuestMapFrame_OpenToQuestDetails = nil, nil
+    GetQuestLogQuestText = nil
     C_PlayerInfo, GetDifficultyColor, GetQuestDifficultyColor, UnitEffectiveLevel = nil, nil, nil, nil
     frames, output, objects = {}, {}, {}
     questEntries = {
@@ -470,6 +472,33 @@ expect(selectedQuest, 103)
 questEntries[2].objectives[1] = "Necklaces recovered: 2/6"
 event("QUEST_LOG_UPDATE")
 assert(contains(listQuestRowTexts(questContent), "- Necklaces recovered: 2/6"))
+assert(questEntries[1].isCollapsed and not questEntries[3].isCollapsed and questEntries[5].isCollapsed)
+
+questEntries[2].objectiveText = "Search near the old forest road.\nListen for clues."
+questEntries[2].waypointText = "Look by the trees."
+questEntries[4].objectiveText = "Defias thugs slain: 2/12"
+questEntries[6].objectiveText = "   "
+GetQuestLogQuestText = function(index)
+    local entry = visibleEntries()[index]
+    return "Description must not be used", entry and entry.objectiveText
+end
+C_QuestLog.GetNextWaypointText = function(id)
+    for _, entry in ipairs(questEntries) do
+        if entry.questID == id then return entry.waypointText end
+    end
+end
+event("QUEST_LOG_UPDATE")
+rowTexts = listQuestRowTexts(questContent)
+assert(contains(rowTexts, "- Search near the old forest road.\nListen for clues."))
+assert(contains(rowTexts, "- Necklaces recovered: 2/6"))
+assert(contains(rowTexts, "- Look by the trees."))
+assert(contains(rowTexts, "- No objective progress details."))
+assert(not contains(rowTexts, "- Description must not be used"))
+local duplicateCount = 0
+for _, text in ipairs(rowTexts) do
+    if text == "- Defias thugs slain: 2/12" then duplicateCount = duplicateCount + 1 end
+end
+expect(duplicateCount, 1)
 assert(questEntries[1].isCollapsed and not questEntries[3].isCollapsed and questEntries[5].isCollapsed)
 
 local difficultyColors = {

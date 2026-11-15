@@ -17,8 +17,9 @@ enabled/disabled setting is migrated to the corresponding visibility.
 The Krust Quest List window is movable and can be resized by dragging its bottom-right
 corner; its size is remembered. It groups active quests by quest color
 (gray/green/yellow/orange/red), then by zone. Each quest is shown as `[level] title`,
-with objective progress listed below (for example `- 3/10`). Clicking a quest
-row opens that quest in the default quest log UI.
+with objective descriptions, progress, and available hints listed below. Long
+text wraps to fit the window. Clicking a quest row opens that quest in the
+default quest log UI.
 
 XP continues to be tracked while the display is hidden. The latest gain shows
 how many equally sized gains remain, rounded up. A gain that crosses one level

@@ -359,20 +359,30 @@ local function collectActiveQuests()
             end
         elseif info and info.title then
             local objectives = {}
+            local function addObjective(text)
+                if type(text) ~= "string" or not text:find("%S") then return end
+                for _, existing in ipairs(objectives) do
+                    if existing == text then return end
+                end
+                objectives[#objectives + 1] = text
+            end
+            if modern and GetQuestLogQuestText then
+                local _, objectiveText = GetQuestLogQuestText(i)
+                addObjective(objectiveText)
+            end
             if modern and C_QuestLog.GetQuestObjectives and info.questID then
                 for _, objective in ipairs(C_QuestLog.GetQuestObjectives(info.questID) or {}) do
-                    if objective.text and objective.text ~= "" then
-                        objectives[#objectives + 1] = objective.text
-                    end
+                    addObjective(objective.text)
                 end
             elseif not modern then
                 local objectiveCount = GetNumQuestLeaderBoards and GetNumQuestLeaderBoards(i) or 0
                 for objectiveIndex = 1, objectiveCount do
                     local objectiveText = GetQuestLogLeaderBoard and GetQuestLogLeaderBoard(objectiveIndex, i)
-                    if objectiveText and objectiveText ~= "" then
-                        objectives[#objectives + 1] = objectiveText
-                    end
+                    addObjective(objectiveText)
                 end
+            end
+            if modern and info.questID and C_QuestLog.GetNextWaypointText then
+                addObjective(C_QuestLog.GetNextWaypointText(info.questID))
             end
             local colorKey, color = getQuestColor(info.level, info.questID)
             quests[#quests + 1] = {
@@ -537,6 +547,7 @@ local function ensureQuestRow(index)
     row.text:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -1)
     row.text:SetPoint("TOPRIGHT", row, "TOPRIGHT", -4, -1)
     row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(true)
 
     row:SetScript("OnEnter", function(self)
         if self.questIndex then
@@ -617,8 +628,8 @@ local function toggleQuestWindow()
         questWindow:Hide()
         return
     end
-    updateQuestWindow()
     questWindow:Show()
+    updateQuestWindow()
 end
 
 local function createQuestWindow()
