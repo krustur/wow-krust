@@ -247,8 +247,8 @@ expect(eta.text, "ETA: Estimating...")
 expect(remaining.text, "Remaining XP: 900")
 assert(eta.point[5] > remaining.point[5] and remaining.point[5] > status.point[5])
 
--- Panel chrome textures + 100 empty/fill pairs + rested marker and overlays.
-expect(#display.textures, 306)
+-- Panel chrome textures + 100 empty/fill pairs + rested marker, overlays, and grouped borders.
+expect(#display.textures, 386)
 local empty1, fill1 = display.textures[6], display.textures[7]
 local empty25 = display.textures[54]
 local empty26 = display.textures[56]
@@ -258,6 +258,19 @@ expect(empty25.point[4], 250)
 expect(empty25.point[5], -24)
 expect(empty26.point[4], 10)
 expect(empty26.point[5], -34)
+local firstGroupTop = display.textures[307]
+local firstGroupBottom = display.textures[308]
+local firstGroupLeft = display.textures[309]
+local firstGroupRight = display.textures[310]
+expect(firstGroupTop.point[4], 9)
+expect(firstGroupTop.point[5], -23)
+expect(firstGroupTop.width, 50)
+expect(firstGroupBottom.point[5], -32)
+expect(firstGroupLeft.height, 10)
+expect(firstGroupRight.point[4], 58)
+expectApprox(firstGroupTop.color[1], 0.22)
+expectApprox(firstGroupTop.color[2], 0.5)
+expectApprox(firstGroupTop.color[3], 0.85)
 
 local fill10 = display.textures[25]
 local fill11 = display.textures[27]
