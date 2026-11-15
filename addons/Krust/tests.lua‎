@@ -247,6 +247,29 @@ expectApprox(fill1.color[1], 0.48)
 expectApprox(fill1.color[2], 0.8)
 expectApprox(fill1.color[3], 1.0)
 assert(display.textures[206].shown)
+local marker = display.textures[206]
+expect(marker.height, 10)
+expectApprox(marker.point[4], 138)
+expect(marker.point[5], -33)
+for _, text in ipairs(display.strings) do
+    assert(text.text ~= "Rested up to here")
+end
+
+xp, restedXP = 100, 150
+event("PLAYER_XP_UPDATE", "player")
+expectApprox(marker.point[4], 258)
+expect(marker.point[5], -23)
+restedXP = 155
+event("PLAYER_XP_UPDATE", "player")
+expectApprox(marker.point[4], 14)
+expect(marker.point[5], -33)
+restedXP = 1000
+event("PLAYER_XP_UPDATE", "player")
+expectApprox(marker.point[4], 258)
+expect(marker.point[5], -53)
+restedXP = nil
+event("PLAYER_XP_UPDATE", "player")
+assert(not marker.shown)
 
 local questButton = findChildFrame(display, function(frame)
     return frame.text == "Quest List"

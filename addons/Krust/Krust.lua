@@ -61,7 +61,7 @@ local QUEST_GROUP_COLORS = {
 local QUEST_ZONE_COLOR = { 0.65, 0.84, 1.0, 1 }
 local QUEST_OBJECTIVE_COLOR = { 0.85, 0.9, 1.0, 1 }
 
-local restedMarker, restedMarkerText
+local restedMarker
 
 local function setTextureColor(texture, color)
     texture:SetVertexColor(color[1], color[2], color[3], color[4] or 1)
@@ -131,25 +131,23 @@ local function updateRestedMarker(xp, maxXP)
     local restedXP = GetXPExhaustion and GetXPExhaustion() or nil
     if maxXP <= 0 or not restedXP or restedXP <= 0 then
         restedMarker:Hide()
-        restedMarkerText:Hide()
         return
     end
 
     local markerXP = math.min(maxXP, xp + restedXP)
     if markerXP <= xp then
         restedMarker:Hide()
-        restedMarkerText:Hide()
         return
     end
 
-    local markerOffset = math.floor((markerXP / maxXP) * (GRID_WIDTH - 1) + 0.5)
+    local progress = math.max(0, math.min(BOX_COUNT, markerXP / maxXP * BOX_COUNT))
+    local boxIndex = math.max(0, math.ceil(progress) - 1)
+    local column = boxIndex % BOX_COLUMNS
+    local row = math.floor(boxIndex / BOX_COLUMNS)
+    local markerOffset = column * (BOX_SIZE + BOX_SPACING) + (progress - boxIndex) * BOX_SIZE
     restedMarker:ClearAllPoints()
-    restedMarker:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X + markerOffset, GRID_Y + 1)
+    restedMarker:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X + markerOffset, GRID_Y - row * (BOX_SIZE + BOX_SPACING) + 1)
     restedMarker:Show()
-
-    restedMarkerText:ClearAllPoints()
-    restedMarkerText:SetPoint("BOTTOM", restedMarker, "TOP", 0, 2)
-    restedMarkerText:Show()
 end
 
 local function updateGrid(xp, maxXP)
@@ -659,15 +657,10 @@ local function createDisplay()
 
     restedMarker = display:CreateTexture(nil, "OVERLAY")
     restedMarker:SetWidth(2)
-    restedMarker:SetHeight(GRID_HEIGHT + 3)
+    restedMarker:SetHeight(BOX_SIZE + 2)
     restedMarker:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(restedMarker, RESTED_MARKER_COLOR)
     restedMarker:Hide()
-
-    restedMarkerText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    restedMarkerText:SetText("Rested up to here")
-    restedMarkerText:SetTextColor(0.85, 0.95, 1.0)
-    restedMarkerText:Hide()
 
     etaText = display:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     etaText:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, GRID_Y - GRID_HEIGHT - 8)
