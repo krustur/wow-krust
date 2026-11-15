@@ -275,9 +275,9 @@ expect(firstGroupBottom.point[5], -33)
 expect(firstGroupLeft.height, 10)
 expect(firstGroupRight.point[4], 67)
 assert(secondGroupLeft.point[4] - (firstGroupRight.point[4] + firstGroupRight.width) >= 1)
-expectApprox(firstGroupTop.color[1], 0.38)
-expectApprox(firstGroupTop.color[2], 0.72)
-expectApprox(firstGroupTop.color[3], 1.0)
+expectApprox(firstGroupTop.color[1], 0.12)
+expectApprox(firstGroupTop.color[2], 0.17)
+expectApprox(firstGroupTop.color[3], 0.26)
 
 local fill10 = display.textures[25]
 local fill11 = display.textures[27]

@@ -5,7 +5,7 @@ folder into the client's `Interface/AddOns` directory and reload the UI.
 
 Krust displays current-level XP as a 25 x 4 grid (100 blocks, one per percent),
 with each row visually grouped into sets of five blocks by a thin border.
-Border colors use a brighter blue palette so group separators stay readable.
+Group borders use a darker blue tone so separators are visible without overpowering the XP fill colors.
 The grid is snapped to runtime viewport pixels so each block keeps the same
 pixel width and group borders stay at least 1 pixel thick with at least 1
 pixel between neighboring group borders. It is followed by an estimated time
