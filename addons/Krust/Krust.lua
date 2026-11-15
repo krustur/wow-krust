@@ -111,20 +111,33 @@ local function resolveGridLayout()
         return pixels * unitsPerPixel
     end
 
+    local borderThickness = toUnits(1)
+    local borderPadding = toUnits(1)
+    local borderGap = toUnits(1)
     local boxSize = toUnits(BOX_SIZE)
     local boxSpacing = toUnits(math.max(1, BOX_SPACING))
+    local interGroupSpacing = math.max(boxSpacing, borderPadding * 2 + borderThickness * 2 + borderGap)
+    local interRowSpacing = math.max(boxSpacing, borderPadding * 2 + borderThickness * 2 + borderGap)
+    local groupBoundaryExtraSpacing = interGroupSpacing - boxSpacing
+    local rowBoundaryExtraSpacing = interRowSpacing - boxSpacing
     local slotStep = boxSize + boxSpacing
     local gridX = toUnits(GRID_X)
     local gridY = toUnits(GRID_Y)
-    local gridWidth = BOX_COLUMNS * boxSize + (BOX_COLUMNS - 1) * boxSpacing
-    local gridHeight = BOX_ROWS * boxSize + (BOX_ROWS - 1) * boxSpacing
+    local horizontalGroupBoundaries = math.max(0, math.floor((BOX_COLUMNS - 1) / BOX_GROUP_SIZE))
+    local verticalRowBoundaries = math.max(0, BOX_ROWS - 1)
+    local gridWidth = BOX_COLUMNS * boxSize + (BOX_COLUMNS - 1) * boxSpacing + horizontalGroupBoundaries * groupBoundaryExtraSpacing
+    local gridHeight = BOX_ROWS * boxSize + (BOX_ROWS - 1) * boxSpacing + verticalRowBoundaries * rowBoundaryExtraSpacing
 
     return {
         unitsPerPixel = unitsPerPixel,
         boxSize = boxSize,
         boxSpacing = boxSpacing,
         slotStep = slotStep,
-        borderThickness = toUnits(1),
+        borderThickness = borderThickness,
+        borderPadding = borderPadding,
+        borderGap = borderGap,
+        groupBoundaryExtraSpacing = groupBoundaryExtraSpacing,
+        rowBoundaryExtraSpacing = rowBoundaryExtraSpacing,
         gridX = gridX,
         gridY = gridY,
         gridWidth = gridWidth,
@@ -139,6 +152,14 @@ local function getGridLayout()
         gridLayout = resolveGridLayout()
     end
     return gridLayout
+end
+
+local function getColumnOffset(layout, column)
+    return column * layout.slotStep + math.floor(column / BOX_GROUP_SIZE) * layout.groupBoundaryExtraSpacing
+end
+
+local function getRowOffset(layout, row)
+    return row * layout.slotStep + row * layout.rowBoundaryExtraSpacing
 end
 
 local function frameIsShown(frame)
@@ -197,33 +218,39 @@ local function addPanelChrome(frame, bgColor, borderColor)
     setTextureColor(right, borderColor)
 end
 
-local function addSlotGroupBorder(parent, left, top, width, height, borderThickness)
+local function addSlotGroupBorder(parent, left, top, width, height, borderThickness, borderPadding)
     local thickness = math.max(0.001, borderThickness or 1)
+    local padding = math.max(0.001, borderPadding or thickness)
+    local outerLeft = left - (padding + thickness)
+    local outerTop = top + padding + thickness
+    local outerWidth = width + 2 * (padding + thickness)
+    local outerHeight = height + 2 * (padding + thickness)
+
     local topBorder = parent:CreateTexture(nil, "ARTWORK")
-    topBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", left, top)
-    topBorder:SetWidth(width)
+    topBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop)
+    topBorder:SetWidth(outerWidth)
     topBorder:SetHeight(thickness)
     topBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(topBorder, BOX_GROUP_BORDER_COLOR)
 
     local bottomBorder = parent:CreateTexture(nil, "ARTWORK")
-    bottomBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", left, top - height + thickness)
-    bottomBorder:SetWidth(width)
+    bottomBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop - (outerHeight - thickness))
+    bottomBorder:SetWidth(outerWidth)
     bottomBorder:SetHeight(thickness)
     bottomBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(bottomBorder, BOX_GROUP_BORDER_COLOR)
 
     local leftBorder = parent:CreateTexture(nil, "ARTWORK")
-    leftBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", left, top)
+    leftBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop)
     leftBorder:SetWidth(thickness)
-    leftBorder:SetHeight(height)
+    leftBorder:SetHeight(outerHeight)
     leftBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(leftBorder, BOX_GROUP_BORDER_COLOR)
 
     local rightBorder = parent:CreateTexture(nil, "ARTWORK")
-    rightBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", left + width - thickness, top)
+    rightBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft + outerWidth - thickness, outerTop)
     rightBorder:SetWidth(thickness)
-    rightBorder:SetHeight(height)
+    rightBorder:SetHeight(outerHeight)
     rightBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(rightBorder, BOX_GROUP_BORDER_COLOR)
 end
@@ -249,9 +276,9 @@ local function updateRestedMarker(xp, maxXP, restedXP)
     local boxIndex = math.max(0, math.ceil(progress) - 1)
     local column = boxIndex % BOX_COLUMNS
     local row = math.floor(boxIndex / BOX_COLUMNS)
-    local markerOffset = column * layout.slotStep + (progress - boxIndex) * layout.boxSize
+    local markerOffset = getColumnOffset(layout, column) + (progress - boxIndex) * layout.boxSize
     restedMarker:ClearAllPoints()
-    restedMarker:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX + markerOffset, layout.gridY - row * layout.slotStep + layout.borderThickness)
+    restedMarker:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX + markerOffset, layout.gridY - getRowOffset(layout, row) + layout.borderThickness)
     restedMarker:Show()
 end
 
@@ -866,7 +893,7 @@ local function createDisplay()
         local empty = display:CreateTexture(nil, "BORDER")
         empty:SetWidth(layout.boxSize)
         empty:SetHeight(layout.boxSize)
-        empty:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX + column * layout.slotStep, layout.gridY - row * layout.slotStep)
+        empty:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX + getColumnOffset(layout, column), layout.gridY - getRowOffset(layout, row))
         empty:SetTexture("Interface\\Buttons\\WHITE8X8")
         setTextureColor(empty, EMPTY_BOX_COLOR)
         boxBackgrounds[i] = empty
@@ -896,12 +923,12 @@ local function createDisplay()
     end
 
     for row = 0, BOX_ROWS - 1 do
-        local top = layout.gridY - row * layout.slotStep
+        local top = layout.gridY - getRowOffset(layout, row)
         for column = 0, BOX_COLUMNS - 1, BOX_GROUP_SIZE do
             local columnsInGroup = math.min(BOX_GROUP_SIZE, BOX_COLUMNS - column)
-            local left = layout.gridX + column * layout.slotStep
+            local left = layout.gridX + getColumnOffset(layout, column)
             local width = columnsInGroup * layout.boxSize + (columnsInGroup - 1) * layout.boxSpacing
-            addSlotGroupBorder(display, left, top, width, layout.boxSize, layout.borderThickness)
+            addSlotGroupBorder(display, left, top, width, layout.boxSize, layout.borderThickness, layout.borderPadding)
         end
     end
 

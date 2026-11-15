@@ -7,8 +7,9 @@ Krust displays current-level XP as a 25 x 4 grid (100 blocks, one per percent),
 with each row visually grouped into sets of five blocks by a thin border.
 Group borders use a darker blue tone so separators are visible without overpowering the XP fill colors.
 The grid is snapped to runtime viewport pixels so each block keeps the same
-pixel width and group borders stay at least 1 pixel thick with at least 1
-pixel between neighboring group borders. It is followed by an estimated time
+pixel width and group borders stay at least 1 pixel thick, with a 1-pixel gap
+from XP blocks and at least 1 pixel between neighboring group borders. It is
+followed by an estimated time
 until the next level, remaining XP, and the most
 recent XP gain. When rested, the grid shifts to a light blue palette and shows
 a marker for the rested-XP endpoint; the grid beyond it stays dark. Drag the
