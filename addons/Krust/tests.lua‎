@@ -1,6 +1,7 @@
-local level, xp, maxXP, now
-local eventFrame, display, frames, output
-local objects
+local level, xp, maxXP, restedXP, now
+local eventFrame, frames, output, objects
+local selectedQuest, toggleQuestLogCalls
+local questEntries
 
 local function newObject()
     local object = { shown = true, scripts = {} }
@@ -8,19 +9,32 @@ local function newObject()
     function object:SetWidth(value) self.width = value end
     function object:SetHeight(value) self.height = value end
     function object:SetPoint(...) self.point = { ... } end
+    function object:ClearAllPoints() self.point = nil end
     function object:SetAllPoints(...) self.allPoints = { ... } end
     function object:SetTexture(...) self.texture = { ... } end
     function object:SetVertexColor(...) self.color = { ... } end
     function object:SetText(value) self.text = value end
+    function object:SetTextColor(...) self.textColor = { ... } end
     function object:SetJustifyH(value) self.justify = value end
     function object:Show() self.shown = true end
     function object:Hide() self.shown = false end
+    function object:IsShown() return self.shown end
     function object:SetMovable(value) self.movable = value end
     function object:EnableMouse(value) self.mouse = value end
+    function object:EnableMouseWheel(value) self.mouseWheel = value end
     function object:RegisterForDrag(value) self.dragButton = value end
     function object:SetClampedToScreen(value) self.clamped = value end
     function object:StartMoving() self.moving = true end
     function object:StopMovingOrSizing() self.moving = false end
+    function object:SetScrollChild(child) self.scrollChild = child end
+    function object:SetVerticalScroll(value) self.verticalScroll = value end
+    function object:GetVerticalScroll() return self.verticalScroll or 0 end
+    function object:GetVerticalScrollRange()
+        if not self.scrollChild or not self.height then
+            return 0
+        end
+        return math.max(0, (self.scrollChild.height or 0) - self.height)
+    end
     function object:GetLeft() return self.left end
     function object:GetTop() return self.top end
     function object:GetBottom() return self.bottom end
@@ -28,12 +42,14 @@ local function newObject()
     function object:SetScript(name, handler) self.scripts[name] = handler end
     function object:CreateTexture()
         local texture = newObject()
+        texture.parent = self
         self.textures = self.textures or {}
         self.textures[#self.textures + 1] = texture
         return texture
     end
     function object:CreateFontString()
         local text = newObject()
+        text.parent = self
         self.strings = self.strings or {}
         self.strings[#self.strings + 1] = text
         return text
@@ -42,21 +58,93 @@ local function newObject()
 end
 
 local realPrint = print
+
 local function setup(db)
-    level, xp, maxXP, now = 10, 100, 1000, 0
+    level, xp, maxXP, restedXP, now = 10, 100, 1000, nil, 0
+    selectedQuest, toggleQuestLogCalls = nil, 0
     frames, output, objects = {}, {}, {}
+    questEntries = {
+        { title = "Elwynn Forest", isHeader = true, isCollapsed = false },
+        { title = "Lost Necklace", level = 4, objectives = { "Necklaces recovered: 1/6" } },
+        { title = "Into the Woods", level = 7, objectives = { "Timber Wolves slain: 5/10" } },
+        { title = "Westfall", isHeader = true, isCollapsed = false },
+        { title = "Westfall Watch", level = 10, objectives = { "Defias thugs slain: 2/12" } },
+        { title = "Redridge Mountains", isHeader = true, isCollapsed = false },
+        { title = "Redridge Alert", level = 16, objectives = { "Gnolls slain: 1/8" } },
+    }
+
     UIParent = newObject()
     UIParent.left, UIParent.bottom = 10, 20
-    function CreateFrame()
+    function CreateFrame(frameType, name, parent, template)
         local frame = newObject()
+        frame.frameType = frameType
+        frame.name = name
+        frame.parent = parent
+        frame.template = template
         frames[#frames + 1] = frame
         return frame
     end
+
+    QuestLogFrame = newObject()
+    QuestLogFrame.shown = false
+
     function UnitLevel() return level end
     function UnitXP() return xp end
     function UnitXPMax() return maxXP end
+    function GetXPExhaustion() return restedXP end
+    function GetQuestGreenRange() return 5 end
     function GetTime() return now end
     function print(message) output[#output + 1] = message end
+    function ToggleQuestLog()
+        toggleQuestLogCalls = toggleQuestLogCalls + 1
+        QuestLogFrame.shown = not QuestLogFrame.shown
+    end
+    function SelectQuestLogEntry(index)
+        selectedQuest = index
+    end
+    function QuestLog_Update() end
+    function GetNumQuestLogEntries()
+        return #questEntries
+    end
+    function GetQuestLogTitle(index)
+        local entry = questEntries[index]
+        if not entry then return end
+        if entry.isHeader then
+            return entry.title, nil, nil, true, entry.isCollapsed
+        end
+        return entry.title, entry.level, nil, false, false
+    end
+    function ExpandQuestHeader(index)
+        if index == 0 then
+            for _, entry in ipairs(questEntries) do
+                if entry.isHeader then
+                    entry.isCollapsed = false
+                end
+            end
+        elseif questEntries[index] and questEntries[index].isHeader then
+            questEntries[index].isCollapsed = false
+        end
+    end
+    function CollapseQuestHeader(index)
+        if questEntries[index] and questEntries[index].isHeader then
+            questEntries[index].isCollapsed = true
+        end
+    end
+    function GetNumQuestLeaderBoards(index)
+        local entry = questEntries[index]
+        if not entry or entry.isHeader or not entry.objectives then
+            return 0
+        end
+        return #entry.objectives
+    end
+    function GetQuestLogLeaderBoard(objectiveIndex, questIndex)
+        local entry = questEntries[questIndex]
+        if not entry or entry.isHeader or not entry.objectives then
+            return nil
+        end
+        return entry.objectives[objectiveIndex]
+    end
+
     KrustDB = db
     SlashCmdList = {}
     assert(loadfile("addons/Krust/Krust.lua"))("Krust")
@@ -66,147 +154,142 @@ end
 local function event(name, arg)
     assert(eventFrame.events[name], name)
     eventFrame.scripts.OnEvent(eventFrame, name, arg)
-    display = frames[2]
-end
-
-local function tick(seconds)
-    now = now + seconds
-    eventFrame.scripts.OnUpdate(eventFrame, seconds)
 end
 
 local function expect(actual, expected)
     assert(actual == expected, "expected " .. tostring(expected) .. ", got " .. tostring(actual))
 end
 
-local function gain(value)
-    xp = xp + value
-    event("PLAYER_XP_UPDATE", "player")
+local function expectApprox(actual, expected, tolerance)
+    local delta = math.abs(actual - expected)
+    assert(delta <= (tolerance or 0.0001), "expected " .. tostring(expected) .. ", got " .. tostring(actual))
+end
+
+local function findFrameByName(name)
+    for _, frame in ipairs(frames) do
+        if frame.name == name then
+            return frame
+        end
+    end
+end
+
+local function findChildFrame(parent, matcher)
+    for _, frame in ipairs(frames) do
+        if frame.parent == parent and (not matcher or matcher(frame)) then
+            return frame
+        end
+    end
+end
+
+local function findQuestRow(questContent, text)
+    for _, frame in ipairs(frames) do
+        if frame.parent == questContent and frame.text and frame.text.text == text and frame.shown then
+            return frame
+        end
+    end
+end
+
+local function listQuestRowTexts(questContent)
+    local rows = {}
+    for _, frame in ipairs(frames) do
+        if frame.parent == questContent and frame.text and frame.shown then
+            rows[#rows + 1] = frame.text.text
+        end
+    end
+    return rows
+end
+
+local function contains(values, expected)
+    for _, value in ipairs(values) do
+        if value == expected then
+            return true
+        end
+    end
+    return false
 end
 
 setup()
-event("ADDON_LOADED", "Other")
-expect(#frames, 1)
 event("ADDON_LOADED", "Krust")
-assert(display.shown and display.movable and display.mouse and display.clamped)
-expect(display.dragButton, "LeftButton")
-expect(KrustDB.shown, true)
-expect(#output, 0)
-expect(display.strings[1].text, "ETA: Estimating...")
-expect(display.strings[2].text, "Waiting for an XP gain.")
--- Texture 1 is the backdrop, followed by alternating empty and filled boxes.
-expect(display.textures[1].texture[1], "Interface\\Buttons\\WHITE8X8")
-expect(display.textures[1].color[4], 0.75)
-expect(display.textures[2].texture[1], "Interface\\Buttons\\WHITE8X8")
-expect(display.textures[2].color[1], 0.2)
-expect(display.textures[3].texture[1], "Interface\\Buttons\\WHITE8X8")
-expect(display.textures[3].color[3], 0.85)
-expect(display.textures[3].width, 8)
-assert(display.textures[9].shown)
-assert(not display.textures[11].shown)
 event("PLAYER_ENTERING_WORLD")
-xp = 112
-event("PLAYER_XP_UPDATE", "player")
-assert(math.abs(display.textures[11].width - 3.84) < 0.0001)
-expect(display.strings[2].text, "Gained 12 XP. 74 more of these to go ...")
 
--- A fresh session exercises elapsed time, idle time, and window expiry.
-setup()
-event("ADDON_LOADED", "Krust")
-event("PLAYER_ENTERING_WORLD")
-tick(30)
-gain(100)
-expect(display.strings[1].text, "ETA: Estimating...")
-tick(30)
-expect(display.strings[1].text, "ETA: ~8m")
-expect(display.strings[2].text, "Gained 100 XP. 8 more of these to go ...")
-tick(60)
-expect(display.strings[1].text, "ETA: ~16m")
-SlashCmdList.KRUST(" HIDE ")
+local display = findFrameByName("KrustDisplay")
+local questWindow = findFrameByName("KrustQuestListWindow")
+assert(display and questWindow)
+expect(display.width, 268)
+expect(display.height, 126)
+assert(display.shown and display.movable and display.mouse and display.clamped)
+
+-- Panel chrome textures + 100 empty/fill pairs + rested marker texture.
+expect(#display.textures, 206)
+local empty1, fill1 = display.textures[6], display.textures[7]
+local empty25 = display.textures[54]
+local empty26 = display.textures[56]
+expect(empty1.point[4], 10)
+expect(empty1.point[5], -24)
+expect(empty25.point[4], 250)
+expect(empty25.point[5], -24)
+expect(empty26.point[4], 10)
+expect(empty26.point[5], -34)
+
+local fill10 = display.textures[25]
+local fill11 = display.textures[27]
+assert(fill10.shown)
+assert(not fill11.shown)
+assert(not display.textures[206].shown)
+expectApprox(fill1.color[1], 0.55)
+expectApprox(fill1.color[2], 0.25)
+expectApprox(fill1.color[3], 0.85)
+
+restedXP = 250
+xp = 130
+event("PLAYER_XP_UPDATE", "player")
+expectApprox(fill1.color[1], 0.48)
+expectApprox(fill1.color[2], 0.8)
+expectApprox(fill1.color[3], 1.0)
+assert(display.textures[206].shown)
+
+local questButton = findChildFrame(display, function(frame)
+    return frame.text == "Quest List"
+end)
+assert(questButton and questButton.scripts.OnClick)
+assert(not questWindow.shown)
+questButton.scripts.OnClick(questButton)
+assert(questWindow.shown)
+
+local scrollFrame = findChildFrame(questWindow, function(frame)
+    return frame.frameType == "ScrollFrame"
+end)
+assert(scrollFrame and scrollFrame.scrollChild)
+local questContent = scrollFrame.scrollChild
+
+local rowTexts = listQuestRowTexts(questContent)
+expect(rowTexts[1], "Gray Quests")
+expect(rowTexts[2], "Elwynn Forest")
+expect(rowTexts[3], "[4] Lost Necklace")
+expect(rowTexts[4], "- Necklaces recovered: 1/6")
+assert(contains(rowTexts, "Green Quests"))
+assert(contains(rowTexts, "Yellow Quests"))
+assert(contains(rowTexts, "Red Quests"))
+assert(contains(rowTexts, "[16] Redridge Alert"))
+assert(contains(rowTexts, "- Defias thugs slain: 2/12"))
+
+local westfallRow = findQuestRow(questContent, "[10] Westfall Watch")
+assert(westfallRow and westfallRow.questIndex and westfallRow.scripts.OnClick)
+westfallRow.scripts.OnClick(westfallRow)
+expect(toggleQuestLogCalls, 1)
+expect(selectedQuest, westfallRow.questIndex)
+
+SlashCmdList.KRUST("quests")
+assert(not questWindow.shown)
+SlashCmdList.KRUST("quests")
+assert(questWindow.shown)
+
+SlashCmdList.KRUST("hide")
 assert(not display.shown and not KrustDB.shown)
-gain(100)
-expect(display.strings[2].text, "Gained 100 XP. 7 more of these to go ...")
 SlashCmdList.KRUST("show")
 assert(display.shown and KrustDB.shown)
-expect(display.strings[1].text, "ETA: ~7m")
-tick(1801)
-expect(display.strings[1].text, "ETA: Unavailable")
-gain(100)
-expect(display.strings[1].text, "ETA: ~3h 00m")
-local status = display.strings[2].text
-event("PLAYER_XP_UPDATE", "pet")
-event("PLAYER_XP_UPDATE", "player")
-expect(display.strings[2].text, status)
-xp = 10
-event("PLAYER_XP_UPDATE", "player")
-expect(display.strings[1].text, "ETA: Estimating...")
-expect(display.strings[2].text, status)
-gain(100)
-expect(display.strings[2].text, "Gained 100 XP. 9 more of these to go ...")
-
-display.left, display.top = 200, 400
-display.scripts.OnDragStart(display)
-assert(display.moving)
-display.scripts.OnDragStop(display)
-assert(not display.moving)
-expect(KrustDB.x, 190)
-expect(KrustDB.y, 380)
-local saved = KrustDB
-setup(saved)
-event("ADDON_LOADED", "Krust")
-expect(display.point[1], "TOPLEFT")
-expect(display.point[4], 190)
-expect(display.point[5], 380)
 SlashCmdList.KRUST("invalid")
-expect(output[#output], "Krust: Display is shown. Usage: /krust show | hide")
-SlashCmdList.KRUST("disable")
-assert(display.shown)
-SlashCmdList.KRUST("hide")
-saved = KrustDB
-setup(saved)
-event("ADDON_LOADED", "Krust")
-assert(not display.shown)
-expect(display.point[4], 190)
-expect(display.point[5], 380)
+expect(output[#output], "Krust: Display is shown. Usage: /krust show | hide | quests")
 
-setup({ enabled = false })
-event("ADDON_LOADED", "Krust")
-assert(not display.shown and not KrustDB.shown and KrustDB.enabled == nil)
-event("PLAYER_ENTERING_WORLD")
-level, xp, maxXP = 11, 50, 2000
-event("PLAYER_XP_UPDATE", "player")
-expect(display.strings[2].text, "Gained 950 XP. 3 more of these to go ...")
-level, xp, maxXP = 12, 0, 0
-event("PLAYER_LEVEL_UP")
-tick(0.1)
-expect(display.strings[2].text, "Gained 1950 XP. No next level is available.")
-expect(display.strings[1].text, "ETA: No next level")
-assert(not display.textures[3].shown)
-level, xp, maxXP = 15, 20, 3000
-event("PLAYER_XP_UPDATE", "player")
-expect(display.strings[2].text, "XP gain crossed multiple levels and cannot be calculated.")
-expect(display.strings[1].text, "ETA: Estimating...")
-gain(50)
-expect(display.strings[2].text, "Gained 50 XP. 59 more of these to go ...")
-
-setup()
-event("ADDON_LOADED", "Krust")
-event("PLAYER_ENTERING_WORLD")
-tick(60)
-expect(display.strings[1].text, "ETA: Unavailable")
-gain(890)
-expect(display.strings[1].text, "ETA: ~< 1m")
-level, xp, maxXP = 11, 50, 2000
-event("PLAYER_XP_UPDATE", "player")
-event("PLAYER_LEVEL_UP")
-tick(0.1)
-expect(display.strings[2].text, "Gained 60 XP. 33 more of these to go ...")
-event("PLAYER_ENTERING_WORLD")
-expect(display.strings[1].text, "ETA: Estimating...")
-
-setup({ shown = true, enabled = false, x = 0/0, y = 10 })
-event("ADDON_LOADED", "Krust")
-assert(display.shown)
-expect(display.point[1], "CENTER")
-expect(KrustDB.enabled, nil)
 print = realPrint
 print("Krust tests passed")

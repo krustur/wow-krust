@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Krust
-## Notes: Displays experience progress, estimated time and gains until the next level.
+## Notes: Displays XP progress with rested marker, ETA, gain info, and a grouped quest list window.
 ## Author: krustur
 ## Version: 1.0.0
 ## SavedVariables: KrustDB

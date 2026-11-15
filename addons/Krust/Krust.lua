@@ -1,19 +1,81 @@
 local addonName = ...
 local events = CreateFrame("Frame")
-local display
+local display, questWindow, questScrollFrame, questContent
 local boxes = {}
+local boxBackgrounds = {}
+local questRows = {}
 local etaText, statusText
 local lastLevel, lastXP, lastMaxXP
 local rateStart, gains = nil, {}
 local elapsed = 0
 local pendingLevelUpdate = false
+local updatingQuestWindow = false
 
-local BOX_COUNT = 40
-local BOX_COLUMNS = 20
+local BOX_COUNT = 100
+local BOX_COLUMNS = 25
+local BOX_ROWS = 4
 local BOX_SIZE = 8
 local BOX_SPACING = 2
+local GRID_X = 10
+local GRID_Y = -24
+local GRID_WIDTH = BOX_COLUMNS * BOX_SIZE + (BOX_COLUMNS - 1) * BOX_SPACING
+local GRID_HEIGHT = BOX_ROWS * BOX_SIZE + (BOX_ROWS - 1) * BOX_SPACING
+local DISPLAY_WIDTH = GRID_X * 2 + GRID_WIDTH
+local DISPLAY_HEIGHT = 126
 local RATE_WINDOW = 30 * 60
 local MIN_RATE_TIME = 60
+
+local DISPLAY_BG_COLOR = { 0.05, 0.08, 0.15, 0.9 }
+local DISPLAY_BORDER_COLOR = { 0.22, 0.5, 0.85, 0.95 }
+local EMPTY_BOX_COLOR = { 0.16, 0.19, 0.25, 1 }
+local RESTED_EMPTY_BOX_COLOR = { 0.16, 0.28, 0.4, 1 }
+local ACTIVE_BOX_COLOR = { 0.55, 0.25, 0.85, 1 }
+local RESTED_BOX_COLOR = { 0.48, 0.8, 1.0, 1 }
+local RESTED_MARKER_COLOR = { 0.92, 0.98, 1.0, 0.95 }
+
+local QUEST_WINDOW_WIDTH = 430
+local QUEST_WINDOW_HEIGHT = 480
+local QUEST_ROW_HEIGHT = 16
+local OBJECTIVE_ROW_HEIGHT = 14
+local QUEST_SCROLL_STEP = 24
+
+local QUEST_COLOR_ORDER = { "gray", "green", "yellow", "red" }
+local QUEST_GROUP_LABELS = {
+    gray = "Gray Quests",
+    green = "Green Quests",
+    yellow = "Yellow Quests",
+    red = "Red Quests",
+}
+local QUEST_TEXT_COLORS = {
+    gray = { 0.65, 0.65, 0.65, 1 },
+    green = { 0.45, 0.9, 0.45, 1 },
+    yellow = { 1.0, 0.88, 0.38, 1 },
+    red = { 0.95, 0.45, 0.45, 1 },
+}
+local QUEST_GROUP_COLORS = {
+    gray = { 0.7, 0.75, 0.8, 1 },
+    green = { 0.55, 0.95, 0.65, 1 },
+    yellow = { 1.0, 0.95, 0.6, 1 },
+    red = { 1.0, 0.65, 0.65, 1 },
+}
+local QUEST_ZONE_COLOR = { 0.65, 0.84, 1.0, 1 }
+local QUEST_OBJECTIVE_COLOR = { 0.85, 0.9, 1.0, 1 }
+
+local restedMarker, restedMarkerText
+
+local function setTextureColor(texture, color)
+    texture:SetVertexColor(color[1], color[2], color[3], color[4] or 1)
+end
+
+local function frameIsShown(frame)
+    if not frame then
+        return false
+    end
+    if frame.IsShown then
+        return frame:IsShown()
+    end
+    return frame.shown
+end
 
 local function snapshot()
     lastLevel = UnitLevel("player")
@@ -26,12 +88,83 @@ local function resetRate()
     gains = {}
 end
 
+local function addPanelChrome(frame, bgColor, borderColor)
+    local background = frame:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints(frame)
+    background:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(background, bgColor)
+
+    local top = frame:CreateTexture(nil, "BORDER")
+    top:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+    top:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+    top:SetHeight(1)
+    top:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(top, borderColor)
+
+    local bottom = frame:CreateTexture(nil, "BORDER")
+    bottom:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
+    bottom:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+    bottom:SetHeight(1)
+    bottom:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(bottom, borderColor)
+
+    local left = frame:CreateTexture(nil, "BORDER")
+    left:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+    left:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
+    left:SetWidth(1)
+    left:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(left, borderColor)
+
+    local right = frame:CreateTexture(nil, "BORDER")
+    right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+    right:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+    right:SetWidth(1)
+    right:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(right, borderColor)
+end
+
+local function updateRestedMarker(xp, maxXP)
+    if not restedMarker then
+        return
+    end
+
+    local restedXP = GetXPExhaustion and GetXPExhaustion() or nil
+    if maxXP <= 0 or not restedXP or restedXP <= 0 then
+        restedMarker:Hide()
+        restedMarkerText:Hide()
+        return
+    end
+
+    local markerXP = math.min(maxXP, xp + restedXP)
+    if markerXP <= xp then
+        restedMarker:Hide()
+        restedMarkerText:Hide()
+        return
+    end
+
+    local markerOffset = math.floor((markerXP / maxXP) * (GRID_WIDTH - 1) + 0.5)
+    restedMarker:ClearAllPoints()
+    restedMarker:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X + markerOffset, GRID_Y + 1)
+    restedMarker:Show()
+
+    restedMarkerText:ClearAllPoints()
+    restedMarkerText:SetPoint("BOTTOM", restedMarker, "TOP", 0, 2)
+    restedMarkerText:Show()
+end
+
 local function updateGrid(xp, maxXP)
     local progress = 0
     if maxXP > 0 then
         progress = math.max(0, math.min(1, xp / maxXP)) * BOX_COUNT
     end
+    local restedXP = GetXPExhaustion and GetXPExhaustion() or nil
+    local isRested = restedXP and restedXP > 0
+    local fillColor = isRested and RESTED_BOX_COLOR or ACTIVE_BOX_COLOR
+    local emptyColor = isRested and RESTED_EMPTY_BOX_COLOR or EMPTY_BOX_COLOR
+
     for i = 1, BOX_COUNT do
+        setTextureColor(boxBackgrounds[i], emptyColor)
+        setTextureColor(boxes[i], fillColor)
         local fill = math.max(0, math.min(1, progress - (i - 1)))
         boxes[i]:SetWidth(math.max(0.001, BOX_SIZE * fill))
         if fill > 0 then
@@ -40,6 +173,8 @@ local function updateGrid(xp, maxXP)
             boxes[i]:Hide()
         end
     end
+
+    updateRestedMarker(xp, maxXP)
 end
 
 local function updateETA(xp, maxXP)
@@ -88,10 +223,391 @@ local function validCoordinate(value)
     return type(value) == "number" and value == value and value > -100000 and value < 100000
 end
 
+local function getQuestColorKey(questLevel)
+    local playerLevel = UnitLevel("player") or 0
+    local level = tonumber(questLevel) or playerLevel
+    local greenRange = GetQuestGreenRange and GetQuestGreenRange() or 5
+    local grayThreshold = playerLevel - greenRange
+
+    if level <= grayThreshold then
+        return "gray"
+    elseif level <= playerLevel - 3 then
+        return "green"
+    elseif level >= playerLevel + 5 then
+        return "red"
+    end
+    return "yellow"
+end
+
+local function openQuestInQuestLog(questTitle, questLevel, fallbackIndex)
+    if not questTitle and not fallbackIndex then
+        return
+    end
+
+    local questLogShown = QuestLogFrame and QuestLogFrame.IsShown and QuestLogFrame:IsShown()
+    if ToggleQuestLog and not questLogShown then
+        ToggleQuestLog()
+    end
+    if ExpandQuestHeader then
+        ExpandQuestHeader(0)
+    end
+
+    local questIndex = fallbackIndex
+    if questTitle and GetNumQuestLogEntries and GetQuestLogTitle then
+        for i = 1, GetNumQuestLogEntries() do
+            local title, level, _, isHeader = GetQuestLogTitle(i)
+            if not isHeader and title == questTitle and level == questLevel then
+                questIndex = i
+                break
+            end
+        end
+    end
+
+    if not questIndex then
+        return
+    end
+    if SelectQuestLogEntry then
+        SelectQuestLogEntry(questIndex)
+    elseif QuestLog_SetSelection then
+        QuestLog_SetSelection(questIndex)
+    end
+    if QuestLog_Update then
+        QuestLog_Update()
+    end
+end
+
+local function collectActiveQuests()
+    local quests = {}
+    if not GetNumQuestLogEntries or not GetQuestLogTitle then
+        return quests
+    end
+
+    local collapsedHeaderCounts = {}
+    local totalEntries = GetNumQuestLogEntries()
+    for i = 1, totalEntries do
+        local title, _, _, isHeader, isCollapsed = GetQuestLogTitle(i)
+        if isHeader and isCollapsed and title and title ~= "" then
+            collapsedHeaderCounts[title] = (collapsedHeaderCounts[title] or 0) + 1
+        end
+    end
+
+    if ExpandQuestHeader then
+        ExpandQuestHeader(0)
+    end
+
+    local currentZone = "Unknown Zone"
+    totalEntries = GetNumQuestLogEntries()
+    for i = 1, totalEntries do
+        local title, level, _, isHeader = GetQuestLogTitle(i)
+        if isHeader then
+            currentZone = (title and title ~= "") and title or "Unknown Zone"
+        elseif title then
+            local objectives = {}
+            local objectiveCount = GetNumQuestLeaderBoards and GetNumQuestLeaderBoards(i) or 0
+            for objectiveIndex = 1, objectiveCount do
+                local objectiveText = GetQuestLogLeaderBoard and GetQuestLogLeaderBoard(objectiveIndex, i)
+                if objectiveText and objectiveText ~= "" then
+                    objectives[#objectives + 1] = objectiveText
+                end
+            end
+            quests[#quests + 1] = {
+                index = i,
+                zone = currentZone,
+                level = level or 0,
+                title = title,
+                objectives = objectives,
+                colorKey = getQuestColorKey(level),
+            }
+        end
+    end
+
+    if CollapseQuestHeader and next(collapsedHeaderCounts) then
+        for i = GetNumQuestLogEntries(), 1, -1 do
+            local title, _, _, isHeader = GetQuestLogTitle(i)
+            if isHeader and title and collapsedHeaderCounts[title] and collapsedHeaderCounts[title] > 0 then
+                CollapseQuestHeader(i)
+                collapsedHeaderCounts[title] = collapsedHeaderCounts[title] - 1
+            end
+        end
+    end
+
+    return quests
+end
+
+local function buildQuestLines()
+    local grouped = {
+        gray = {},
+        green = {},
+        yellow = {},
+        red = {},
+    }
+    local lines = {}
+    local quests = collectActiveQuests()
+
+    for _, quest in ipairs(quests) do
+        local colorKey = grouped[quest.colorKey] and quest.colorKey or "yellow"
+        local zone = (quest.zone and quest.zone ~= "") and quest.zone or "Unknown Zone"
+        if not grouped[colorKey][zone] then
+            grouped[colorKey][zone] = {}
+        end
+        grouped[colorKey][zone][#grouped[colorKey][zone] + 1] = quest
+    end
+
+    for _, colorKey in ipairs(QUEST_COLOR_ORDER) do
+        local zones = grouped[colorKey]
+        local zoneNames = {}
+        for zoneName in pairs(zones) do
+            zoneNames[#zoneNames + 1] = zoneName
+        end
+        table.sort(zoneNames, function(a, b)
+            return string.lower(a) < string.lower(b)
+        end)
+
+        if #zoneNames > 0 then
+            lines[#lines + 1] = {
+                type = "group",
+                text = QUEST_GROUP_LABELS[colorKey],
+                color = QUEST_GROUP_COLORS[colorKey],
+                height = QUEST_ROW_HEIGHT + 2,
+            }
+            for _, zoneName in ipairs(zoneNames) do
+                lines[#lines + 1] = {
+                    type = "zone",
+                    text = zoneName,
+                    color = QUEST_ZONE_COLOR,
+                    height = QUEST_ROW_HEIGHT,
+                }
+
+                local zoneQuests = zones[zoneName]
+                table.sort(zoneQuests, function(a, b)
+                    if a.level == b.level then
+                        return string.lower(a.title) < string.lower(b.title)
+                    end
+                    return a.level < b.level
+                end)
+
+                for _, quest in ipairs(zoneQuests) do
+                    lines[#lines + 1] = {
+                        type = "quest",
+                        text = string.format("[%d] %s", quest.level, quest.title),
+                        color = QUEST_TEXT_COLORS[colorKey],
+                        height = QUEST_ROW_HEIGHT,
+                        questIndex = quest.index,
+                        questLevel = quest.level,
+                        questTitle = quest.title,
+                    }
+
+                    if #quest.objectives == 0 then
+                        lines[#lines + 1] = {
+                            type = "objective",
+                            text = "- No objective progress details.",
+                            color = QUEST_OBJECTIVE_COLOR,
+                            height = OBJECTIVE_ROW_HEIGHT,
+                        }
+                    else
+                        for _, objective in ipairs(quest.objectives) do
+                            lines[#lines + 1] = {
+                                type = "objective",
+                                text = "- " .. objective,
+                                color = QUEST_OBJECTIVE_COLOR,
+                                height = OBJECTIVE_ROW_HEIGHT,
+                            }
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if #lines == 0 then
+        lines[#lines + 1] = {
+            type = "empty",
+            text = "No active quests.",
+            color = QUEST_OBJECTIVE_COLOR,
+            height = QUEST_ROW_HEIGHT,
+        }
+    end
+
+    return lines
+end
+
+local function scrollQuestWindow(delta)
+    if not questScrollFrame or not questScrollFrame.GetVerticalScroll then
+        return
+    end
+    local maxScroll = questScrollFrame:GetVerticalScrollRange() or 0
+    local nextScroll = (questScrollFrame:GetVerticalScroll() or 0) - delta * QUEST_SCROLL_STEP
+    if nextScroll < 0 then
+        nextScroll = 0
+    elseif nextScroll > maxScroll then
+        nextScroll = maxScroll
+    end
+    questScrollFrame:SetVerticalScroll(nextScroll)
+end
+
+local function ensureQuestRow(index)
+    if questRows[index] then
+        return questRows[index]
+    end
+
+    local row = CreateFrame("Button", nil, questContent)
+    row:SetHeight(QUEST_ROW_HEIGHT)
+    row:SetPoint("LEFT", questContent, "LEFT", 0, 0)
+    row:SetPoint("RIGHT", questContent, "RIGHT", 0, 0)
+    row.highlight = row:CreateTexture(nil, "BACKGROUND")
+    row.highlight:SetAllPoints(row)
+    row.highlight:SetTexture("Interface\\Buttons\\WHITE8X8")
+    row.highlight:SetVertexColor(0.3, 0.55, 0.9, 0.18)
+    row.highlight:Hide()
+
+    row.text = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.text:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -1)
+    row.text:SetPoint("TOPRIGHT", row, "TOPRIGHT", -4, -1)
+    row.text:SetJustifyH("LEFT")
+
+    row:SetScript("OnEnter", function(self)
+        if self.questIndex then
+            self.highlight:Show()
+        end
+    end)
+    row:SetScript("OnLeave", function(self)
+        self.highlight:Hide()
+    end)
+    row:SetScript("OnClick", function(self)
+        if self.questIndex then
+            openQuestInQuestLog(self.questTitle, self.questLevel, self.questIndex)
+        end
+    end)
+
+    questRows[index] = row
+    return row
+end
+
+local function updateQuestWindow()
+    if not questWindow or not questContent or updatingQuestWindow then
+        return
+    end
+    updatingQuestWindow = true
+
+    local lines = buildQuestLines()
+    local yOffset = -4
+    for i, line in ipairs(lines) do
+        local row = ensureQuestRow(i)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", questContent, "TOPLEFT", 0, yOffset)
+        row:SetPoint("TOPRIGHT", questContent, "TOPRIGHT", 0, yOffset)
+        row:SetHeight(line.height)
+
+        row.text:ClearAllPoints()
+        local textInset = 4
+        if line.type == "zone" then
+            textInset = 12
+        elseif line.type == "quest" then
+            textInset = 20
+        elseif line.type == "objective" then
+            textInset = 32
+        end
+        row.text:SetPoint("TOPLEFT", row, "TOPLEFT", textInset, -1)
+        row.text:SetPoint("TOPRIGHT", row, "TOPRIGHT", -4, -1)
+        row.text:SetText(line.text)
+        row.text:SetTextColor(line.color[1], line.color[2], line.color[3], line.color[4] or 1)
+        row.questIndex = line.questIndex
+        row.questTitle = line.questTitle
+        row.questLevel = line.questLevel
+        row.highlight:Hide()
+        row:Show()
+        yOffset = yOffset - line.height
+    end
+
+    for i = #lines + 1, #questRows do
+        questRows[i]:Hide()
+        questRows[i].questIndex = nil
+        questRows[i].questTitle = nil
+        questRows[i].questLevel = nil
+    end
+
+    questContent:SetHeight(math.max(1, -yOffset + 6))
+    if questScrollFrame and questScrollFrame.GetVerticalScrollRange then
+        local maxScroll = questScrollFrame:GetVerticalScrollRange() or 0
+        local currentScroll = questScrollFrame:GetVerticalScroll() or 0
+        if currentScroll > maxScroll then
+            questScrollFrame:SetVerticalScroll(maxScroll)
+        end
+    end
+    updatingQuestWindow = false
+end
+
+local function toggleQuestWindow()
+    if not questWindow then
+        return
+    end
+    if frameIsShown(questWindow) then
+        questWindow:Hide()
+        return
+    end
+    updateQuestWindow()
+    questWindow:Show()
+end
+
+local function createQuestWindow()
+    questWindow = CreateFrame("Frame", "KrustQuestListWindow", UIParent)
+    questWindow:SetWidth(QUEST_WINDOW_WIDTH)
+    questWindow:SetHeight(QUEST_WINDOW_HEIGHT)
+    questWindow:SetMovable(true)
+    questWindow:EnableMouse(true)
+    questWindow:RegisterForDrag("LeftButton")
+    questWindow:SetClampedToScreen(true)
+    if validCoordinate(KrustDB.questX) and validCoordinate(KrustDB.questY) then
+        questWindow:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", KrustDB.questX, KrustDB.questY)
+    else
+        questWindow:SetPoint("TOPLEFT", display, "TOPRIGHT", 12, 0)
+    end
+    questWindow:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    questWindow:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local left, top = self:GetLeft(), self:GetTop()
+        local parentLeft, parentBottom = UIParent:GetLeft(), UIParent:GetBottom()
+        if left and top and parentLeft and parentBottom then
+            KrustDB.questX, KrustDB.questY = left - parentLeft, top - parentBottom
+        end
+    end)
+    addPanelChrome(questWindow, { 0.03, 0.06, 0.12, 0.93 }, DISPLAY_BORDER_COLOR)
+
+    local title = questWindow:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    title:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 10, -8)
+    title:SetText("Quest List")
+
+    local hint = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    hint:SetPoint("TOPRIGHT", questWindow, "TOPRIGHT", -82, -10)
+    hint:SetText("Mouse wheel scroll")
+    hint:SetTextColor(0.75, 0.82, 0.95)
+
+    local closeButton = CreateFrame("Button", nil, questWindow, "UIPanelButtonTemplate")
+    closeButton:SetWidth(64)
+    closeButton:SetHeight(18)
+    closeButton:SetPoint("TOPRIGHT", questWindow, "TOPRIGHT", -8, -6)
+    closeButton:SetText("Close")
+    closeButton:SetScript("OnClick", function() questWindow:Hide() end)
+
+    questScrollFrame = CreateFrame("ScrollFrame", nil, questWindow)
+    questScrollFrame:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 10, -30)
+    questScrollFrame:SetPoint("BOTTOMRIGHT", questWindow, "BOTTOMRIGHT", -10, 10)
+    questScrollFrame:EnableMouseWheel(true)
+    questScrollFrame:SetScript("OnMouseWheel", function(_, delta)
+        scrollQuestWindow(delta)
+    end)
+
+    questContent = CreateFrame("Frame", nil, questScrollFrame)
+    questContent:SetWidth(QUEST_WINDOW_WIDTH - 34)
+    questContent:SetHeight(1)
+    questScrollFrame:SetScrollChild(questContent)
+    questWindow:Hide()
+end
+
 local function createDisplay()
     display = CreateFrame("Frame", "KrustDisplay", UIParent)
-    display:SetWidth(BOX_COLUMNS * (BOX_SIZE + BOX_SPACING) + 10)
-    display:SetHeight(92)
+    display:SetWidth(DISPLAY_WIDTH)
+    display:SetHeight(DISPLAY_HEIGHT)
     display:SetMovable(true)
     display:EnableMouse(true)
     display:RegisterForDrag("LeftButton")
@@ -111,33 +627,66 @@ local function createDisplay()
         end
     end)
 
-    local background = display:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints(display)
-    background:SetTexture("Interface\\Buttons\\WHITE8X8")
-    background:SetVertexColor(0, 0, 0, 0.75)
+    addPanelChrome(display, DISPLAY_BG_COLOR, DISPLAY_BORDER_COLOR)
+
+    local title = display:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    title:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, -8)
+    title:SetText("Krust XP")
+
+    local subtitle = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    subtitle:SetPoint("TOPRIGHT", display, "TOPRIGHT", -GRID_X, -10)
+    subtitle:SetText("100 blocks / 100%")
+    subtitle:SetTextColor(0.75, 0.82, 0.95)
+
     for i = 1, BOX_COUNT do
         local column = (i - 1) % BOX_COLUMNS
         local row = math.floor((i - 1) / BOX_COLUMNS)
         local empty = display:CreateTexture(nil, "BORDER")
         empty:SetWidth(BOX_SIZE)
         empty:SetHeight(BOX_SIZE)
-        empty:SetPoint("TOPLEFT", display, "TOPLEFT", 6 + column * (BOX_SIZE + BOX_SPACING), -6 - row * (BOX_SIZE + BOX_SPACING))
+        empty:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X + column * (BOX_SIZE + BOX_SPACING), GRID_Y - row * (BOX_SIZE + BOX_SPACING))
         empty:SetTexture("Interface\\Buttons\\WHITE8X8")
-        empty:SetVertexColor(0.2, 0.2, 0.2, 1)
+        setTextureColor(empty, EMPTY_BOX_COLOR)
+        boxBackgrounds[i] = empty
+
         local fill = display:CreateTexture(nil, "ARTWORK")
         fill:SetHeight(BOX_SIZE)
         fill:SetPoint("TOPLEFT", empty, "TOPLEFT", 0, 0)
         fill:SetTexture("Interface\\Buttons\\WHITE8X8")
-        fill:SetVertexColor(0.55, 0.25, 0.85, 1)
+        setTextureColor(fill, ACTIVE_BOX_COLOR)
         boxes[i] = fill
     end
-    etaText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    etaText:SetPoint("TOPLEFT", display, "TOPLEFT", 6, -29)
+
+    restedMarker = display:CreateTexture(nil, "OVERLAY")
+    restedMarker:SetWidth(2)
+    restedMarker:SetHeight(GRID_HEIGHT + 3)
+    restedMarker:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(restedMarker, RESTED_MARKER_COLOR)
+    restedMarker:Hide()
+
+    restedMarkerText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    restedMarkerText:SetText("Rested up to here")
+    restedMarkerText:SetTextColor(0.85, 0.95, 1.0)
+    restedMarkerText:Hide()
+
+    etaText = display:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    etaText:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, GRID_Y - GRID_HEIGHT - 8)
+    etaText:SetTextColor(0.85, 0.95, 1.0)
+
     statusText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    statusText:SetPoint("TOPLEFT", display, "TOPLEFT", 6, -43)
-    statusText:SetWidth(BOX_COLUMNS * (BOX_SIZE + BOX_SPACING) - 2)
+    statusText:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, GRID_Y - GRID_HEIGHT - 22)
+    statusText:SetWidth(DISPLAY_WIDTH - GRID_X * 2)
     statusText:SetJustifyH("LEFT")
+    statusText:SetTextColor(0.85, 0.9, 1.0)
     statusText:SetText("Waiting for an XP gain.")
+
+    local questListButton = CreateFrame("Button", nil, display, "UIPanelButtonTemplate")
+    questListButton:SetWidth(92)
+    questListButton:SetHeight(20)
+    questListButton:SetPoint("BOTTOMRIGHT", display, "BOTTOMRIGHT", -GRID_X, 8)
+    questListButton:SetText("Quest List")
+    questListButton:SetScript("OnClick", toggleQuestWindow)
+
     if KrustDB.shown then display:Show() else display:Hide() end
 end
 
@@ -179,6 +728,7 @@ events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("PLAYER_XP_UPDATE")
 events:RegisterEvent("PLAYER_LEVEL_UP")
+events:RegisterEvent("QUEST_LOG_UPDATE")
 events:SetScript("OnEvent", function(_, event, arg)
     if event == "ADDON_LOADED" and arg == addonName then
         if type(KrustDB) ~= "table" then KrustDB = {} end
@@ -188,6 +738,7 @@ events:SetScript("OnEvent", function(_, event, arg)
         KrustDB.enabled = nil
         resetRate()
         createDisplay()
+        createQuestWindow()
         updateDisplay()
     elseif event == "PLAYER_ENTERING_WORLD" and display then
         snapshot()
@@ -197,6 +748,8 @@ events:SetScript("OnEvent", function(_, event, arg)
         updateXP()
     elseif event == "PLAYER_LEVEL_UP" and display then
         pendingLevelUpdate = true
+    elseif event == "QUEST_LOG_UPDATE" and frameIsShown(questWindow) then
+        updateQuestWindow()
     end
 end)
 events:SetScript("OnUpdate", function(_, delta)
@@ -219,10 +772,12 @@ SlashCmdList.KRUST = function(message)
         KrustDB.shown = true
         display:Show()
         updateDisplay()
+    elseif command == "quests" then
+        toggleQuestWindow()
     elseif command == "hide" then
         KrustDB.shown = false
         display:Hide()
     else
-        print("Krust: Display is " .. (KrustDB.shown and "shown" or "hidden") .. ". Usage: /krust show | hide")
+        print("Krust: Display is " .. (KrustDB.shown and "shown" or "hidden") .. ". Usage: /krust show | hide | quests")
     end
 end
