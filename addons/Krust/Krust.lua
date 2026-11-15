@@ -81,59 +81,30 @@ local function setTextureColor(texture, color)
 end
 
 local function resolveGridLayout()
-    local viewportWidth = GetScreenWidth and GetScreenWidth() or nil
-    local viewportHeight = GetScreenHeight and GetScreenHeight() or nil
-    local parentWidth = UIParent and UIParent.GetWidth and UIParent:GetWidth() or nil
-    local parentHeight = UIParent and UIParent.GetHeight and UIParent:GetHeight() or nil
-
-    local widthScale
-    if type(viewportWidth) == "number" and viewportWidth > 0 and type(parentWidth) == "number" and parentWidth > 0 then
-        widthScale = parentWidth / viewportWidth
-    end
-    local heightScale
-    if type(viewportHeight) == "number" and viewportHeight > 0 and type(parentHeight) == "number" and parentHeight > 0 then
-        heightScale = parentHeight / viewportHeight
-    end
-
-    local unitsPerPixelX = widthScale or heightScale or 1
-    local unitsPerPixelY = heightScale or widthScale or 1
-    if unitsPerPixelX <= 0 then unitsPerPixelX = 1 end
-    if unitsPerPixelY <= 0 then unitsPerPixelY = 1 end
-
-    local function toUnitsX(pixels)
-        return pixels * unitsPerPixelX
-    end
-
-    local function toUnitsY(pixels)
-        return pixels * unitsPerPixelY
-    end
-
-    local borderThicknessX = toUnitsX(1)
-    local borderThicknessY = toUnitsY(1)
-    local borderPaddingX = toUnitsX(1)
-    local borderPaddingY = toUnitsY(1)
-    local borderGapX = toUnitsX(1)
-    local borderGapY = toUnitsY(1)
-    local boxWidth = toUnitsX(BOX_SIZE)
-    local boxHeight = toUnitsY(BOX_SIZE)
-    local boxSpacingX = toUnitsX(math.max(1, BOX_SPACING))
-    local boxSpacingY = toUnitsY(math.max(1, BOX_SPACING))
+    local borderThicknessX = 1
+    local borderThicknessY = 1
+    local borderPaddingX = 1
+    local borderPaddingY = 1
+    local borderGapX = 1
+    local borderGapY = 1
+    local boxWidth = BOX_SIZE
+    local boxHeight = BOX_SIZE
+    local boxSpacingX = math.max(1, BOX_SPACING)
+    local boxSpacingY = math.max(1, BOX_SPACING)
     local interGroupSpacingX = math.max(boxSpacingX, borderPaddingX * 2 + borderThicknessX * 2 + borderGapX)
     local interRowSpacingY = math.max(boxSpacingY, borderPaddingY * 2 + borderThicknessY * 2 + borderGapY)
     local groupBoundaryExtraSpacingX = interGroupSpacingX - boxSpacingX
     local rowBoundaryExtraSpacingY = interRowSpacingY - boxSpacingY
     local slotStepX = boxWidth + boxSpacingX
     local slotStepY = boxHeight + boxSpacingY
-    local gridX = toUnitsX(GRID_X)
-    local gridY = toUnitsY(GRID_Y)
+    local gridX = GRID_X
+    local gridY = GRID_Y
     local horizontalGroupBoundaries = math.max(0, math.floor((BOX_COLUMNS - 1) / BOX_GROUP_SIZE))
     local verticalRowBoundaries = math.max(0, BOX_ROWS - 1)
     local gridWidth = BOX_COLUMNS * boxWidth + (BOX_COLUMNS - 1) * boxSpacingX + horizontalGroupBoundaries * groupBoundaryExtraSpacingX
     local gridHeight = BOX_ROWS * boxHeight + (BOX_ROWS - 1) * boxSpacingY + verticalRowBoundaries * rowBoundaryExtraSpacingY
 
     return {
-        unitsPerPixelX = unitsPerPixelX,
-        unitsPerPixelY = unitsPerPixelY,
         boxWidth = boxWidth,
         boxHeight = boxHeight,
         boxSpacingX = boxSpacingX,
@@ -153,7 +124,7 @@ local function resolveGridLayout()
         gridWidth = gridWidth,
         gridHeight = gridHeight,
         displayWidth = gridX * 2 + gridWidth,
-        displayHeight = toUnitsY(DISPLAY_HEIGHT),
+        displayHeight = DISPLAY_HEIGHT,
     }
 end
 
@@ -896,7 +867,7 @@ local function createDisplay()
     addPanelChrome(display, DISPLAY_BG_COLOR, DISPLAY_BORDER_COLOR)
 
     local title = display:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    title:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, -8 * layout.unitsPerPixelY)
+    title:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, -8)
     title:SetText("Krust XP")
 
     for i = 1, BOX_COUNT do
@@ -919,7 +890,7 @@ local function createDisplay()
     end
 
     restedMarker = display:CreateTexture(nil, "OVERLAY")
-    restedMarker:SetWidth(2 * layout.unitsPerPixelX)
+    restedMarker:SetWidth(2)
     restedMarker:SetHeight(layout.boxHeight + 2 * layout.borderThicknessY)
     restedMarker:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(restedMarker, RESTED_MARKER_COLOR)
@@ -955,24 +926,24 @@ local function createDisplay()
     end
 
     etaText = display:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    etaText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 8 * layout.unitsPerPixelY)
+    etaText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 8)
     etaText:SetTextColor(0.85, 0.95, 1.0)
 
     remainingText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    remainingText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 22 * layout.unitsPerPixelY)
+    remainingText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 22)
     remainingText:SetTextColor(0.85, 0.9, 1.0)
 
     statusText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    statusText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 36 * layout.unitsPerPixelY)
+    statusText:SetPoint("TOPLEFT", display, "TOPLEFT", layout.gridX, layout.gridY - layout.gridHeight - 36)
     statusText:SetWidth(layout.displayWidth - layout.gridX * 2)
     statusText:SetJustifyH("LEFT")
     statusText:SetTextColor(0.85, 0.9, 1.0)
     statusText:SetText("Waiting for an XP gain.")
 
     local questListButton = CreateFrame("Button", nil, display, "UIPanelButtonTemplate")
-    questListButton:SetWidth(130 * layout.unitsPerPixelX)
-    questListButton:SetHeight(20 * layout.unitsPerPixelY)
-    questListButton:SetPoint("BOTTOMRIGHT", display, "BOTTOMRIGHT", -layout.gridX, 8 * layout.unitsPerPixelY)
+    questListButton:SetWidth(130)
+    questListButton:SetHeight(20)
+    questListButton:SetPoint("BOTTOMRIGHT", display, "BOTTOMRIGHT", -layout.gridX, 8)
     questListButton:SetText("Krust Quest List")
     questListButton:SetScript("OnClick", toggleQuestWindow)
 
