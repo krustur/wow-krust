@@ -18,6 +18,7 @@ local BOX_COLUMNS = 25
 local BOX_ROWS = 4
 local BOX_SIZE = 8
 local BOX_SPACING = 2
+local BOX_GROUP_SIZE = 5
 local GRID_X = 10
 local GRID_Y = -24
 local GRID_WIDTH = BOX_COLUMNS * BOX_SIZE + (BOX_COLUMNS - 1) * BOX_SPACING
@@ -35,6 +36,7 @@ local RESTED_EMPTY_BOX_COLOR = { 0.16, 0.28, 0.4, 1 }
 local ACTIVE_BOX_COLOR = { 0.55, 0.25, 0.85, 1 }
 local RESTED_BOX_COLOR = { 0.48, 0.8, 1.0, 1 }
 local RESTED_MARKER_COLOR = { 0.92, 0.98, 1.0, 0.95 }
+local BOX_GROUP_BORDER_COLOR = { 0.22, 0.5, 0.85, 0.7 }
 
 local QUEST_WINDOW_WIDTH = 430
 local QUEST_WINDOW_HEIGHT = 480
@@ -131,6 +133,41 @@ local function addPanelChrome(frame, bgColor, borderColor)
     right:SetWidth(1)
     right:SetTexture("Interface\\Buttons\\WHITE8X8")
     setTextureColor(right, borderColor)
+end
+
+local function addSlotGroupBorder(parent, left, top, width, height)
+    local outerLeft = left - 1
+    local outerTop = top + 1
+    local outerWidth = width + 2
+    local outerHeight = height + 2
+
+    local topBorder = parent:CreateTexture(nil, "ARTWORK")
+    topBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop)
+    topBorder:SetWidth(outerWidth)
+    topBorder:SetHeight(1)
+    topBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(topBorder, BOX_GROUP_BORDER_COLOR)
+
+    local bottomBorder = parent:CreateTexture(nil, "ARTWORK")
+    bottomBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop - (outerHeight - 1))
+    bottomBorder:SetWidth(outerWidth)
+    bottomBorder:SetHeight(1)
+    bottomBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(bottomBorder, BOX_GROUP_BORDER_COLOR)
+
+    local leftBorder = parent:CreateTexture(nil, "ARTWORK")
+    leftBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft, outerTop)
+    leftBorder:SetWidth(1)
+    leftBorder:SetHeight(outerHeight)
+    leftBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(leftBorder, BOX_GROUP_BORDER_COLOR)
+
+    local rightBorder = parent:CreateTexture(nil, "ARTWORK")
+    rightBorder:SetPoint("TOPLEFT", parent, "TOPLEFT", outerLeft + outerWidth - 1, outerTop)
+    rightBorder:SetWidth(1)
+    rightBorder:SetHeight(outerHeight)
+    rightBorder:SetTexture("Interface\\Buttons\\WHITE8X8")
+    setTextureColor(rightBorder, BOX_GROUP_BORDER_COLOR)
 end
 
 local function updateRestedMarker(xp, maxXP, restedXP)
@@ -794,6 +831,17 @@ local function createDisplay()
         rested:SetTexture("Interface\\Buttons\\WHITE8X8")
         setTextureColor(rested, RESTED_EMPTY_BOX_COLOR)
         restedBackgrounds[i] = rested
+    end
+
+    local slotStep = BOX_SIZE + BOX_SPACING
+    for row = 0, BOX_ROWS - 1 do
+        local top = GRID_Y - row * slotStep
+        for column = 0, BOX_COLUMNS - 1, BOX_GROUP_SIZE do
+            local columnsInGroup = math.min(BOX_GROUP_SIZE, BOX_COLUMNS - column)
+            local left = GRID_X + column * slotStep
+            local width = columnsInGroup * BOX_SIZE + (columnsInGroup - 1) * BOX_SPACING
+            addSlotGroupBorder(display, left, top, width, BOX_SIZE)
+        end
     end
 
     etaText = display:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
