@@ -29,6 +29,7 @@ local MIN_RATE_TIME = 60
 local DISPLAY_BG_COLOR = { 0.05, 0.08, 0.15, 0.9 }
 local DISPLAY_BORDER_COLOR = { 0.22, 0.5, 0.85, 0.95 }
 local EMPTY_BOX_COLOR = { 0.16, 0.19, 0.25, 1 }
+local NON_RESTED_BOX_COLOR = { 0.09, 0.11, 0.15, 1 }
 local RESTED_EMPTY_BOX_COLOR = { 0.16, 0.28, 0.4, 1 }
 local ACTIVE_BOX_COLOR = { 0.55, 0.25, 0.85, 1 }
 local RESTED_BOX_COLOR = { 0.48, 0.8, 1.0, 1 }
@@ -168,6 +169,7 @@ local function updateGrid(xp, maxXP)
     local restedEnd = isRested and math.max(0, math.min(BOX_COUNT, (xp + restedXP) / maxXP * BOX_COUNT)) or 0
 
     for i = 1, BOX_COUNT do
+        setTextureColor(boxBackgrounds[i], isRested and NON_RESTED_BOX_COLOR or EMPTY_BOX_COLOR)
         setTextureColor(boxes[i], fillColor)
         local fill = math.max(0, math.min(1, progress - (i - 1)))
         boxes[i]:SetWidth(math.max(0.001, BOX_SIZE * fill))
