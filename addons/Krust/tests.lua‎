@@ -228,7 +228,9 @@ assert(display and questWindow)
 expect(display.width, 268)
 expect(display.height, 140)
 assert(display.shown and display.movable and display.mouse and display.clamped)
-local eta, remaining, status = display.strings[3], display.strings[4], display.strings[5]
+local eta, remaining, status = display.strings[2], display.strings[3], display.strings[4]
+expect(#display.strings, 4)
+expect(questWindow.strings[1].text, "Krust Quest List")
 expect(eta.text, "ETA: Estimating...")
 expect(remaining.text, "Remaining XP: 900")
 assert(eta.point[5] > remaining.point[5] and remaining.point[5] > status.point[5])
@@ -303,7 +305,7 @@ assert(not marker.shown)
 assert(not display.textures[306].shown)
 
 local questButton = findChildFrame(display, function(frame)
-    return frame.text == "Quest List"
+    return frame.text == "Krust Quest List"
 end)
 assert(questButton and questButton.scripts.OnClick)
 assert(not questWindow.shown)
@@ -329,6 +331,11 @@ questWindow:SetWidth(600)
 questWindow:SetHeight(500)
 questWindow.scripts.OnSizeChanged(questWindow, 600, 500)
 expect(questContent.width, 566)
+assert(questWindow.strings[2].shown)
+questWindow.scripts.OnSizeChanged(questWindow, 240, 500)
+assert(not questWindow.strings[2].shown)
+questWindow.scripts.OnSizeChanged(questWindow, 600, 500)
+assert(questWindow.strings[2].shown)
 scrollFrame.height = 100
 scrollFrame.verticalScroll = 9999
 scrollFrame.scripts.OnSizeChanged(scrollFrame, 580, 100)
@@ -487,7 +494,7 @@ setup()
 event("ADDON_LOADED", "Krust")
 event("PLAYER_ENTERING_WORLD")
 display = findFrameByName("KrustDisplay")
-eta, remaining, status = display.strings[3], display.strings[4], display.strings[5]
+eta, remaining, status = display.strings[2], display.strings[3], display.strings[4]
 now, xp = 60, 200
 event("PLAYER_XP_UPDATE", "player")
 expect(eta.text, "ETA: 8m")

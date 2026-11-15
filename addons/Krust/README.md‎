@@ -10,11 +10,11 @@ a marker for the rested-XP endpoint; the grid beyond it stays dark. Drag the
 display with the left mouse button to move it.
 
 Use `/krust show` and `/krust hide` to control visibility. Use `/krust quests`
-to toggle the quest list window, and `/krust` to print current visibility and
+to toggle the Krust Quest List window, and `/krust` to print current visibility and
 usage. Position and visibility are remembered between sessions. An existing
 enabled/disabled setting is migrated to the corresponding visibility.
 
-The Quest List window is movable and can be resized by dragging its bottom-right
+The Krust Quest List window is movable and can be resized by dragging its bottom-right
 corner; its size is remembered. It groups active quests by quest color
 (gray/green/yellow/orange/red), then by zone. Each quest is shown as `[level] title`,
 with objective progress listed below (for example `- 3/10`). Clicking a quest

@@ -647,12 +647,13 @@ local function createQuestWindow()
 
     local title = questWindow:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     title:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 10, -8)
-    title:SetText("Quest List")
+    title:SetText("Krust Quest List")
 
     local hint = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     hint:SetPoint("TOPRIGHT", questWindow, "TOPRIGHT", -82, -10)
     hint:SetText("Mouse wheel scroll")
     hint:SetTextColor(0.75, 0.82, 0.95)
+    if width < 320 then hint:Hide() end
 
     local closeButton = CreateFrame("Button", nil, questWindow, "UIPanelButtonTemplate")
     closeButton:SetWidth(64)
@@ -678,6 +679,7 @@ local function createQuestWindow()
     questScrollFrame:SetScrollChild(questContent)
     questWindow:SetScript("OnSizeChanged", function(_, newWidth)
         questContent:SetWidth(math.max(1, newWidth - 34))
+        if newWidth < 320 then hint:Hide() else hint:Show() end
     end)
 
     local resizeButton = CreateFrame("Button", nil, questWindow)
@@ -732,11 +734,6 @@ local function createDisplay()
     title:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, -8)
     title:SetText("Krust XP")
 
-    local subtitle = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    subtitle:SetPoint("TOPRIGHT", display, "TOPRIGHT", -GRID_X, -10)
-    subtitle:SetText("100 blocks / 100%")
-    subtitle:SetTextColor(0.75, 0.82, 0.95)
-
     for i = 1, BOX_COUNT do
         local column = (i - 1) % BOX_COLUMNS
         local row = math.floor((i - 1) / BOX_COLUMNS)
@@ -788,10 +785,10 @@ local function createDisplay()
     statusText:SetText("Waiting for an XP gain.")
 
     local questListButton = CreateFrame("Button", nil, display, "UIPanelButtonTemplate")
-    questListButton:SetWidth(92)
+    questListButton:SetWidth(130)
     questListButton:SetHeight(20)
     questListButton:SetPoint("BOTTOMRIGHT", display, "BOTTOMRIGHT", -GRID_X, 8)
-    questListButton:SetText("Quest List")
+    questListButton:SetText("Krust Quest List")
     questListButton:SetScript("OnClick", toggleQuestWindow)
 
     if KrustDB.shown then display:Show() else display:Hide() end
