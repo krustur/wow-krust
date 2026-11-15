@@ -2,7 +2,7 @@
 setlocal
 
 REM Set this to your active WoW Forever installation path.
-set "WOW_FOREVER_PATH=C:\Games\WoWForever"
+set "WOW_FOREVER_PATH=D:\Battle.net\World of Warcraft\_forever_"
 
 set "REPO_DIR=%~dp0"
 if "%REPO_DIR:~-1%"=="\" set "REPO_DIR=%REPO_DIR:~0,-1%"
