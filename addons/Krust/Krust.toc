@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Krust
-## Notes: Reports experience gains and estimated gains until the next level.
+## Notes: Displays experience progress, estimated time and gains until the next level.
 ## Author: krustur
 ## Version: 1.0.0
 ## SavedVariables: KrustDB

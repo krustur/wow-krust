@@ -1,14 +1,25 @@
 # Krust
+
 A WoW: Forever addon for client 1.60.1 (interface 16001). Copy the `Krust`
 folder into the client's `Interface/AddOns` directory and reload the UI.
-Krust is enabled by default and remembers its setting between sessions. Use
-`/krust enable` or `/krust disable`; `/krust` shows the current status and usage.
-Output is local to your client, in the default chat/output window. It is never
-sent to a chat channel or other players.
-For each XP update, Krust reports the gain as a percentage of the current
-level's XP requirement and rounds up the number of equally sized gains needed
-to reach the next level. A gain that crosses one level includes the XP spent
-finishing the previous level, and uses the new level's requirement. At the
-level cap, it reports the XP amount instead. If a single update crosses more
-than one level, the intermediate requirements are unavailable, so Krust reports
-that it cannot calculate the gain rather than giving a misleading estimate.
+
+Krust displays current-level XP as a grid, followed by an estimated time until
+the next level and the most recent XP gain. Drag the display with the left mouse
+button to move it. Use `/krust show` and `/krust hide` to control visibility;
+`/krust` prints the current visibility and usage. Position and visibility are
+remembered between sessions. An existing enabled/disabled setting is migrated
+to the corresponding visibility.
+
+XP continues to be tracked while the display is hidden. The latest gain shows
+how many equally sized gains remain, rounded up. A gain that crosses one level
+includes the XP spent finishing the previous level. At the level cap, Krust
+reports the XP amount instead. If an update crosses more than one level, the
+intermediate requirements are unavailable, so the gain cannot be calculated.
+Routine XP reports are not sent to chat or to other players.
+
+The ETA uses XP earned during up to the last 30 minutes divided by elapsed
+in-game time, including idle time. It needs at least one minute of observation
+and a measurable gain; without recent gains it becomes unavailable. It is an
+estimate and will change with your XP rate. Tracking resets when entering the
+world or when an XP change cannot be reliably measured; offline time is not
+included.
