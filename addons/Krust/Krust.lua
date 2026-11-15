@@ -4,7 +4,7 @@ local display, questWindow, questScrollFrame, questContent
 local boxes = {}
 local boxBackgrounds = {}
 local questRows = {}
-local etaText, statusText
+local etaText, remainingText, statusText
 local lastLevel, lastXP, lastMaxXP
 local rateStart, gains = nil, {}
 local elapsed = 0
@@ -21,7 +21,7 @@ local GRID_Y = -24
 local GRID_WIDTH = BOX_COLUMNS * BOX_SIZE + (BOX_COLUMNS - 1) * BOX_SPACING
 local GRID_HEIGHT = BOX_ROWS * BOX_SIZE + (BOX_ROWS - 1) * BOX_SPACING
 local DISPLAY_WIDTH = GRID_X * 2 + GRID_WIDTH
-local DISPLAY_HEIGHT = 126
+local DISPLAY_HEIGHT = 140
 local RATE_WINDOW = 30 * 60
 local MIN_RATE_TIME = 60
 
@@ -185,8 +185,10 @@ end
 local function updateETA(xp, maxXP)
     if maxXP <= 0 then
         etaText:SetText("ETA: No next level")
+        remainingText:SetText("Remaining XP: No next level")
         return
     end
+    remainingText:SetText(string.format("Remaining XP: %d", math.max(0, maxXP - xp)))
     local now = GetTime()
     local cutoff = now - RATE_WINDOW
     local total = 0
@@ -206,13 +208,13 @@ local function updateETA(xp, maxXP)
     else
         local seconds = math.max(0, maxXP - xp) * duration / total
         if seconds < 60 then
-            etaText:SetText("ETA: ~< 1m")
+            etaText:SetText("ETA: < 1m")
         else
             local minutes = math.ceil(seconds / 60)
             if minutes >= 60 then
-                etaText:SetText(string.format("ETA: ~%dh %02dm", math.floor(minutes / 60), minutes % 60))
+                etaText:SetText(string.format("ETA: %dh %02dm", math.floor(minutes / 60), minutes % 60))
             else
-                etaText:SetText(string.format("ETA: ~%dm", minutes))
+                etaText:SetText(string.format("ETA: %dm", minutes))
             end
         end
     end
@@ -759,8 +761,12 @@ local function createDisplay()
     etaText:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, GRID_Y - GRID_HEIGHT - 8)
     etaText:SetTextColor(0.85, 0.95, 1.0)
 
+    remainingText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    remainingText:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, GRID_Y - GRID_HEIGHT - 22)
+    remainingText:SetTextColor(0.85, 0.9, 1.0)
+
     statusText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    statusText:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, GRID_Y - GRID_HEIGHT - 22)
+    statusText:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, GRID_Y - GRID_HEIGHT - 36)
     statusText:SetWidth(DISPLAY_WIDTH - GRID_X * 2)
     statusText:SetJustifyH("LEFT")
     statusText:SetTextColor(0.85, 0.9, 1.0)

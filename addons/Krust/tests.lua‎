@@ -226,8 +226,12 @@ local display = findFrameByName("KrustDisplay")
 local questWindow = findFrameByName("KrustQuestListWindow")
 assert(display and questWindow)
 expect(display.width, 268)
-expect(display.height, 126)
+expect(display.height, 140)
 assert(display.shown and display.movable and display.mouse and display.clamped)
+local eta, remaining, status = display.strings[3], display.strings[4], display.strings[5]
+expect(eta.text, "ETA: Estimating...")
+expect(remaining.text, "Remaining XP: 900")
+assert(eta.point[5] > remaining.point[5] and remaining.point[5] > status.point[5])
 
 -- Panel chrome textures + 100 empty/fill pairs + rested marker texture.
 expect(#display.textures, 206)
@@ -253,6 +257,8 @@ expectApprox(fill1.color[3], 0.85)
 restedXP = 250
 xp = 130
 event("PLAYER_XP_UPDATE", "player")
+expect(remaining.text, "Remaining XP: 870")
+expect(status.text, "Gained 30 XP. 29 more of these to go ...")
 expectApprox(fill1.color[1], 0.48)
 expectApprox(fill1.color[2], 0.8)
 expectApprox(fill1.color[3], 1.0)
@@ -461,6 +467,31 @@ event("ADDON_LOADED", "Krust")
 questWindow = findFrameByName("KrustQuestListWindow")
 expect(questWindow.width, 240)
 expect(questWindow.height, 480)
+
+setup()
+event("ADDON_LOADED", "Krust")
+event("PLAYER_ENTERING_WORLD")
+display = findFrameByName("KrustDisplay")
+eta, remaining, status = display.strings[3], display.strings[4], display.strings[5]
+now, xp = 60, 200
+event("PLAYER_XP_UPDATE", "player")
+expect(eta.text, "ETA: 8m")
+expect(remaining.text, "Remaining XP: 800")
+now = 600
+eventFrame.scripts.OnUpdate(eventFrame, 1)
+expect(eta.text, "ETA: 1h 20m")
+xp, now = 995, 601
+event("PLAYER_XP_UPDATE", "player")
+expect(eta.text, "ETA: < 1m")
+expect(remaining.text, "Remaining XP: 5")
+level, xp, maxXP = 11, 5, 2000
+event("PLAYER_LEVEL_UP")
+eventFrame.scripts.OnUpdate(eventFrame, 0)
+expect(remaining.text, "Remaining XP: 1995")
+maxXP = 0
+event("PLAYER_XP_UPDATE", "player")
+expect(eta.text, "ETA: No next level")
+expect(remaining.text, "Remaining XP: No next level")
 
 print = realPrint
 print("Krust tests passed")
