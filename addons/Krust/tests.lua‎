@@ -233,8 +233,8 @@ expect(eta.text, "ETA: Estimating...")
 expect(remaining.text, "Remaining XP: 900")
 assert(eta.point[5] > remaining.point[5] and remaining.point[5] > status.point[5])
 
--- Panel chrome textures + 100 empty/fill pairs + rested marker texture.
-expect(#display.textures, 206)
+-- Panel chrome textures + 100 empty/fill pairs + rested marker and overlays.
+expect(#display.textures, 306)
 local empty1, fill1 = display.textures[6], display.textures[7]
 local empty25 = display.textures[54]
 local empty26 = display.textures[56]
@@ -250,6 +250,7 @@ local fill11 = display.textures[27]
 assert(fill10.shown)
 assert(not fill11.shown)
 assert(not display.textures[206].shown)
+assert(not display.textures[207].shown)
 expectApprox(fill1.color[1], 0.55)
 expectApprox(fill1.color[2], 0.25)
 expectApprox(fill1.color[3], 0.85)
@@ -263,6 +264,10 @@ expectApprox(fill1.color[1], 0.48)
 expectApprox(fill1.color[2], 0.8)
 expectApprox(fill1.color[3], 1.0)
 assert(display.textures[206].shown)
+assert(display.textures[244].shown)
+expectApprox(display.textures[244].width, 8)
+assert(not display.textures[245].shown)
+expectApprox(display.textures[80].color[2], 0.19)
 local marker = display.textures[206]
 expect(marker.height, 10)
 expectApprox(marker.point[4], 138)
@@ -279,13 +284,23 @@ restedXP = 155
 event("PLAYER_XP_UPDATE", "player")
 expectApprox(marker.point[4], 14)
 expect(marker.point[5], -33)
+expectApprox(display.textures[231].width, 8)
+expectApprox(display.textures[232].width, 4)
+assert(not display.textures[233].shown)
+restedXP = 0
+event("UPDATE_EXHAUSTION")
+assert(not marker.shown and not display.textures[207].shown)
+expectApprox(fill1.color[1], 0.55)
 restedXP = 1000
-event("PLAYER_XP_UPDATE", "player")
+event("UPDATE_EXHAUSTION")
 expectApprox(marker.point[4], 258)
 expect(marker.point[5], -53)
+assert(display.textures[306].shown)
+expectApprox(display.textures[306].width, 8)
 restedXP = nil
 event("PLAYER_XP_UPDATE", "player")
 assert(not marker.shown)
+assert(not display.textures[306].shown)
 
 local questButton = findChildFrame(display, function(frame)
     return frame.text == "Quest List"

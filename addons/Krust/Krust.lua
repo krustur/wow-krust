@@ -3,6 +3,7 @@ local events = CreateFrame("Frame")
 local display, questWindow, questScrollFrame, questContent
 local boxes = {}
 local boxBackgrounds = {}
+local restedBackgrounds = {}
 local questRows = {}
 local etaText, remainingText, statusText
 local lastLevel, lastXP, lastMaxXP
@@ -130,12 +131,11 @@ local function addPanelChrome(frame, bgColor, borderColor)
     setTextureColor(right, borderColor)
 end
 
-local function updateRestedMarker(xp, maxXP)
+local function updateRestedMarker(xp, maxXP, restedXP)
     if not restedMarker then
         return
     end
 
-    local restedXP = GetXPExhaustion and GetXPExhaustion() or nil
     if maxXP <= 0 or not restedXP or restedXP <= 0 then
         restedMarker:Hide()
         return
@@ -163,12 +163,11 @@ local function updateGrid(xp, maxXP)
         progress = math.max(0, math.min(1, xp / maxXP)) * BOX_COUNT
     end
     local restedXP = GetXPExhaustion and GetXPExhaustion() or nil
-    local isRested = restedXP and restedXP > 0
+    local isRested = maxXP > 0 and restedXP and restedXP > 0
     local fillColor = isRested and RESTED_BOX_COLOR or ACTIVE_BOX_COLOR
-    local emptyColor = isRested and RESTED_EMPTY_BOX_COLOR or EMPTY_BOX_COLOR
+    local restedEnd = isRested and math.max(0, math.min(BOX_COUNT, (xp + restedXP) / maxXP * BOX_COUNT)) or 0
 
     for i = 1, BOX_COUNT do
-        setTextureColor(boxBackgrounds[i], emptyColor)
         setTextureColor(boxes[i], fillColor)
         local fill = math.max(0, math.min(1, progress - (i - 1)))
         boxes[i]:SetWidth(math.max(0.001, BOX_SIZE * fill))
@@ -177,9 +176,16 @@ local function updateGrid(xp, maxXP)
         else
             boxes[i]:Hide()
         end
+        local restedFill = math.max(0, math.min(1, restedEnd - (i - 1)))
+        restedBackgrounds[i]:SetWidth(math.max(0.001, BOX_SIZE * restedFill))
+        if restedFill > 0 then
+            restedBackgrounds[i]:Show()
+        else
+            restedBackgrounds[i]:Hide()
+        end
     end
 
-    updateRestedMarker(xp, maxXP)
+    updateRestedMarker(xp, maxXP, restedXP)
 end
 
 local function updateETA(xp, maxXP)
@@ -757,6 +763,15 @@ local function createDisplay()
     setTextureColor(restedMarker, RESTED_MARKER_COLOR)
     restedMarker:Hide()
 
+    for i = 1, BOX_COUNT do
+        local rested = display:CreateTexture(nil, "BORDER")
+        rested:SetHeight(BOX_SIZE)
+        rested:SetPoint("TOPLEFT", boxBackgrounds[i], "TOPLEFT", 0, 0)
+        rested:SetTexture("Interface\\Buttons\\WHITE8X8")
+        setTextureColor(rested, RESTED_EMPTY_BOX_COLOR)
+        restedBackgrounds[i] = rested
+    end
+
     etaText = display:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     etaText:SetPoint("TOPLEFT", display, "TOPLEFT", GRID_X, GRID_Y - GRID_HEIGHT - 8)
     etaText:SetTextColor(0.85, 0.95, 1.0)
@@ -820,6 +835,7 @@ events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("PLAYER_XP_UPDATE")
 events:RegisterEvent("PLAYER_LEVEL_UP")
+events:RegisterEvent("UPDATE_EXHAUSTION")
 events:RegisterEvent("QUEST_LOG_UPDATE")
 events:SetScript("OnEvent", function(_, event, arg)
     if event == "ADDON_LOADED" and arg == addonName then
@@ -840,6 +856,8 @@ events:SetScript("OnEvent", function(_, event, arg)
         updateXP()
     elseif event == "PLAYER_LEVEL_UP" and display then
         pendingLevelUpdate = true
+    elseif event == "UPDATE_EXHAUSTION" and display then
+        updateGrid(UnitXP("player"), UnitXPMax("player"))
     elseif event == "QUEST_LOG_UPDATE" and frameIsShown(questWindow) then
         updateQuestWindow()
     end
