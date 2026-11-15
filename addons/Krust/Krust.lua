@@ -477,6 +477,10 @@ local function buildQuestLines()
                             text = "- No objective progress details.",
                             color = QUEST_OBJECTIVE_COLOR,
                             height = OBJECTIVE_ROW_HEIGHT,
+                            questIndex = quest.index,
+                            questID = quest.id,
+                            questLevel = quest.level,
+                            questTitle = quest.title,
                         }
                     else
                         for _, objective in ipairs(quest.objectives) do
@@ -485,6 +489,10 @@ local function buildQuestLines()
                                 text = "- " .. objective,
                                 color = QUEST_OBJECTIVE_COLOR,
                                 height = OBJECTIVE_ROW_HEIGHT,
+                                questIndex = quest.index,
+                                questID = quest.id,
+                                questLevel = quest.level,
+                                questTitle = quest.title,
                             }
                         end
                     end

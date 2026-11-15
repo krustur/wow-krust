@@ -394,6 +394,20 @@ assert(westfallRow and westfallRow.questIndex and westfallRow.scripts.OnClick)
 westfallRow.scripts.OnClick(westfallRow)
 expect(toggleQuestLogCalls, 1)
 expect(selectedQuest, westfallRow.questIndex)
+local westfallObjective = findQuestRow(questContent, "- Defias thugs slain: 2/12")
+selectedQuest = nil
+westfallObjective.scripts.OnEnter(westfallObjective)
+assert(westfallObjective.highlight.shown)
+westfallObjective.scripts.OnClick(westfallObjective)
+expect(selectedQuest, westfallRow.questIndex)
+westfallObjective.scripts.OnLeave(westfallObjective)
+assert(not westfallObjective.highlight.shown)
+local groupRow = findQuestRow(questContent, "Gray Quests")
+selectedQuest = nil
+groupRow.scripts.OnEnter(groupRow)
+assert(not groupRow.highlight.shown)
+groupRow.scripts.OnClick(groupRow)
+expect(selectedQuest, nil)
 
 local longTitle = string.rep("A very long quest title ", 5)
 local longObjective = string.rep("A long objective with directions ", 8) .. "\nMore directions"
@@ -411,6 +425,9 @@ questWindow.scripts.OnSizeChanged(questWindow, 600, 500)
 assert(wrappedObjective.height < narrowObjectiveHeight)
 assert(questContent.height < narrowHeight)
 wrappedQuest.scripts.OnClick(wrappedQuest)
+expect(selectedQuest, wrappedQuest.questIndex)
+selectedQuest = nil
+wrappedObjective.scripts.OnClick(wrappedObjective)
 expect(selectedQuest, wrappedQuest.questIndex)
 questEntries[5].title = "Westfall Watch"
 questEntries[5].objectives[1] = "Defias thugs slain: 2/12"
@@ -490,6 +507,10 @@ assert(questEntries[1].isCollapsed and not questEntries[3].isCollapsed and quest
 local modernRow = findQuestRow(questContent, "[7] Into the Woods")
 modernRow.scripts.OnClick(modernRow)
 expect(selectedQuest, 103)
+local emptyObjective = findQuestRow(questContent, "- No objective progress details.")
+selectedQuest = nil
+emptyObjective.scripts.OnClick(emptyObjective)
+expect(selectedQuest, 103)
 questEntries[2].objectives[1] = "Necklaces recovered: 2/6"
 event("QUEST_LOG_UPDATE")
 assert(contains(listQuestRowTexts(questContent), "- Necklaces recovered: 2/6"))
@@ -515,6 +536,20 @@ assert(contains(rowTexts, "- Necklaces recovered: 2/6"))
 assert(contains(rowTexts, "- Look by the trees."))
 assert(contains(rowTexts, "- No objective progress details."))
 assert(not contains(rowTexts, "- Description must not be used"))
+for _, text in ipairs({
+    "- Search near the old forest road.\nListen for clues.",
+    "- Necklaces recovered: 2/6",
+    "- Look by the trees.",
+}) do
+    local objectiveRow = findQuestRow(questContent, text)
+    selectedQuest = nil
+    objectiveRow.scripts.OnClick(objectiveRow)
+    expect(selectedQuest, 101)
+end
+local otherObjective = findQuestRow(questContent, "- Defias thugs slain: 2/12")
+selectedQuest = nil
+otherObjective.scripts.OnClick(otherObjective)
+expect(selectedQuest, 102)
 local duplicateCount = 0
 for _, text in ipairs(rowTexts) do
     if text == "- Defias thugs slain: 2/12" then duplicateCount = duplicateCount + 1 end
