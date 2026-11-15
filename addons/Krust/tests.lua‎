@@ -503,10 +503,11 @@ level, xp, maxXP = 11, 5, 2000
 event("PLAYER_LEVEL_UP")
 eventFrame.scripts.OnUpdate(eventFrame, 0)
 expect(remaining.text, "Remaining XP: 1995")
-maxXP = 0
+maxXP, restedXP = 0, 1000
 event("PLAYER_XP_UPDATE", "player")
 expect(eta.text, "ETA: No next level")
 expect(remaining.text, "Remaining XP: No next level")
+assert(not display.textures[206].shown and not display.textures[207].shown)
 
 print = realPrint
 print("Krust tests passed")

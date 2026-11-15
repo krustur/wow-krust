@@ -4,10 +4,10 @@ A WoW: Forever addon for client 1.60.1 (interface 16001). Copy the `Krust`
 folder into the client's `Interface/AddOns` directory and reload the UI.
 
 Krust displays current-level XP as a 25 x 4 grid (100 blocks, one per percent),
-followed by an estimated time until the next level and the most recent XP gain.
-When rested, the grid shifts to a light blue palette and shows a marker for the
-rested-XP endpoint on the current level. Drag the display with the left mouse
-button to move it.
+followed by an estimated time until the next level, remaining XP, and the most
+recent XP gain. When rested, the grid shifts to a light blue palette and shows
+a marker for the rested-XP endpoint; the grid beyond it stays dark. Drag the
+display with the left mouse button to move it.
 
 Use `/krust show` and `/krust hide` to control visibility. Use `/krust quests`
 to toggle the quest list window, and `/krust` to print current visibility and
